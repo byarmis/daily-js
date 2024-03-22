@@ -236,13 +236,13 @@ export function browserNeedsUpgrade() {
     case 'Chrome':
       // Includes Chromium-based browsers
       version = getChromeVersion();
-      return version.major && version.major > 0 && version.major < 61;
+      return version.major && version.major > 0 && version.major < 74;
     case 'Firefox':
       version = getFirefoxVersion();
       return version.major < 78;
     case 'Safari':
       version = getSafariVersion();
-      return version.major < 12;
+      return version.major < 12 || (version.major === 12 && version.minor < 1);
     default:
       return true;
   }
