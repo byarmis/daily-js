@@ -236,7 +236,7 @@ export function browserNeedsUpgrade() {
     case 'Chrome':
       // Includes Chromium-based browsers
       version = getChromeVersion();
-      return version.major && version.major > 0 && version.major < 74;
+      return version.major && version.major > 0 && version.major < 75;
     case 'Firefox':
       version = getFirefoxVersion();
       return version.major < 78;
