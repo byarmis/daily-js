@@ -2065,6 +2065,11 @@ export default class DailyIframe extends EventEmitter {
 
   startLocalAudioLevelObserver(interval) {
     methodNotSupportedInReactNative();
+    if (!isAudioProcessingSupported()) {
+      throw new Error(
+        'startLocalAudioLevelObserver() is not supported on this browser'
+      );
+    }
     this.validateAudioLevelInterval(interval);
     if (!this._callMachineInitialized) {
       this._preloadCache.localAudioLevelObserver = {

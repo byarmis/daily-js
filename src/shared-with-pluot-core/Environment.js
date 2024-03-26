@@ -149,13 +149,28 @@ function isVideoProcessingSupportedInBrowser_Banuba() {
   // manifested as https://bugs.webkit.org/show_bug.cgi?id=232076, which led
   // Banuba to recommend Safari-specific workaround https://docs.banuba.com/face-ar-sdk-v1/web/web_known_issues/#effect-animations-are-delayed-on-safari.
   // Given that the underlying bug has since been fixed, for now it makes sense
-  // to simply exclude the problmatic versions of Safari, especially because
+  // to simply exclude the problematic versions of Safari, especially because
   // they are tied to now-rather-old iOS versions.
-  if (isIOS() && browserName === 'Safari') {
+  if (browserName === 'Safari') {
     const version = getSafariVersion();
-    if (version.major === 15 && version.minor < 4) {
-      return false;
-    }
+    if (isIOS()) {
+      if (version.major === 15 && version.minor < 4) {
+        return false;
+      }
+    } //else if (version.major)
+  }
+
+  // Banuba will crash the browser on Chrome versions older than 77
+  if (browserName === 'Chrome') {
+    const version = getChromeVersion();
+    return version.major >= 77;
+  }
+
+  // Banuba crashes in older versions with:
+  // Error: GPU operations complete wait failed
+  if (browserName === 'Firefox') {
+    const version = getFirefoxVersion();
+    return version.major >= 97;
   }
 
   return ['Chrome', 'Firefox', 'Safari'].includes(browserName);
@@ -170,6 +185,18 @@ export function isAudioProcessingSupported() {
   // But Krisp uses an AudioWorkletNode, which isn't available in older Safari
   if (typeof AudioWorkletNode === 'undefined') return false;
   return supportedBrowsersForAudioProcessors.includes(getBrowserName());
+}
+
+export function browserSupportsAudioLevelObservers() {
+  const browserName = getBrowserName();
+  if (browserName === 'Safari') {
+    const version = getSafariVersion();
+    // AudioContext Worklets do not support addModule until 14.1
+    if (version.major < 14 || (version.major === 14 && version.minor < 1)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function canUnifiedPlan() {
