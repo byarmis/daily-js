@@ -266,10 +266,10 @@ export function browserNeedsUpgrade() {
       return version.major && version.major > 0 && version.major < 75;
     case 'Firefox':
       version = getFirefoxVersion();
-      return version.major < 78;
+      return version.major < 91;
     case 'Safari':
       version = getSafariVersion();
-      return version.major < 12 || (version.major === 12 && version.minor < 1);
+      return version.major < 13 || (version.major === 13 && version.minor < 1);
     default:
       return true;
   }
