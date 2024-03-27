@@ -2754,11 +2754,13 @@ export default class DailyIframe extends EventEmitter {
         if (participants) {
           for (var id in participants) {
             if (this._callObjectMode) {
-              Participant.addTracks(participants[id]);
-              Participant.addCustomTracks(participants[id]);
+              const store = this._callMachine().store;
+              Participant.addTracks(participants[id], store);
+              Participant.addCustomTracks(participants[id], store);
               Participant.addLegacyTracks(
                 participants[id],
-                this._participants[id]
+                this._participants[id],
+                store
               );
             }
             this._participants[id] = { ...participants[id] };
@@ -4382,11 +4384,13 @@ stopTestPeerToPeerCallQuality() instead`);
         if (msg.participant && msg.participant.session_id) {
           let id = msg.participant.local ? 'local' : msg.participant.session_id;
           if (this._callObjectMode) {
-            Participant.addTracks(msg.participant);
-            Participant.addCustomTracks(msg.participant);
+            const store = this._callMachine().store;
+            Participant.addTracks(msg.participant, store);
+            Participant.addCustomTracks(msg.participant, store);
             Participant.addLegacyTracks(
               msg.participant,
-              this._participants[id]
+              this._participants[id],
+              store
             );
           }
 
@@ -5347,6 +5351,12 @@ stopTestPeerToPeerCallQuality() instead`);
     hub.run((currentHub) => {
       currentHub.captureException(new Error(msg));
     });
+  }
+
+  _callMachine() {
+    // No safety checks here: this is an internal method. Should be called only
+    // when we know a call machine has been initialized.
+    return window._daily.instances[this._callFrameId].callMachine;
   }
 }
 

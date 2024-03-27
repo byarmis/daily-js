@@ -6,7 +6,7 @@ import {
 } from './shared-with-pluot-core/selectors';
 
 // Adds tracks to daily-js Participant object.
-export function addTracks(p) {
+export function addTracks(p, store) {
   const state = store.getState();
   for (const type of ['cam', 'screen']) {
     for (const kind of ['video', 'audio']) {
@@ -30,7 +30,7 @@ export function addTracks(p) {
 }
 
 // todo: refactor so that his logic is part of addTracks and friends()
-export function addCustomTracks(p) {
+export function addCustomTracks(p, store) {
   try {
     const state = store.getState();
     for (const trackEntryKey in p.tracks) {
@@ -65,7 +65,7 @@ export function isPredefinedTrack(trackEntryKey) {
 }
 
 // Adds tracks to daily-js Participant object.
-export function addLegacyTracks(p, prevP) {
+export function addLegacyTracks(p, prevP, store) {
   let state = store.getState();
 
   if (p.local) {
