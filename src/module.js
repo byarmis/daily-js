@@ -238,6 +238,7 @@ import {
 import {
   isReactNative,
   isReactNativeIOS,
+  browserSupportsLocalAudioLevelObservers,
   browserVideoSupported_p,
   getUserAgent,
   isFullscreenSupported,
@@ -2065,7 +2066,7 @@ export default class DailyIframe extends EventEmitter {
 
   startLocalAudioLevelObserver(interval) {
     methodNotSupportedInReactNative();
-    if (!isAudioProcessingSupported()) {
+    if (!browserSupportsLocalAudioLevelObservers()) {
       throw new Error(
         'startLocalAudioLevelObserver() is not supported on this browser'
       );
