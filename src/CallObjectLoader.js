@@ -40,7 +40,7 @@ export default class CallObjectLoader {
    */
   load(callFrameId, avoidEval, successCallback, failureCallback) {
     if (this.loaded) {
-      window._daily.instances[callFrameId].resetCallMachine();
+      window._daily.instances[callFrameId].callMachine.reset();
       successCallback(true); // true = "this load() was a no-op"
       return;
     }
