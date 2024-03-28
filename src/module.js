@@ -5169,8 +5169,8 @@ stopTestPeerToPeerCallQuality() instead`);
     }
     // Need to access store directly since when participant muted their audio we
     // don't have access to their audio tracks in this._participants
-    const state = window.store.getState();
-    for (const streamId in state.streams) {
+    const state = this._callMachine()?.store?.getState();
+    for (const streamId in state?.streams) {
       const streamData = state.streams[streamId];
       if (
         streamData &&
@@ -5353,9 +5353,7 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   _callMachine() {
-    // No safety checks here: this is an internal method. Should be called only
-    // when we know a call machine has been initialized.
-    return window._daily.instances[this._callFrameId].callMachine;
+    return window._daily?.instances?.[this._callFrameId]?.callMachine;
   }
 }
 
