@@ -1820,9 +1820,8 @@ export default class DailyIframe extends EventEmitter {
       }
     }
 
-    // now that input settings may have been stripped of platform-unsupported
-    // settings, check again for validity (it may now be empty)
-    if (!validateInputSettings(inputSettings)) {
+    // if input settings are empty, no-op right away
+    if (!(inputSettings.video || inputSettings.audio)) {
       return this._getInputSettings();
     }
 
@@ -5635,15 +5634,16 @@ function validateSendSettings(sendSettings, callObject) {
 function validateInputSettings(settings) {
   if (typeof settings !== 'object') return false;
   if (
-    !(
-      (settings.video && typeof settings.video === 'object') ||
-      (settings.audio && typeof settings.audio === 'object')
-    )
+    settings.video &&
+    (typeof settings.video !== 'object' ||
+      !validateVideoProcessor(settings.video.processor))
   )
     return false;
-  if (settings.video && !validateVideoProcessor(settings.video.processor))
-    return false;
-  if (settings.audio && !validateAudioProcessor(settings.audio.processor))
+  if (
+    settings.audio &&
+    (typeof settings.audio !== 'object' ||
+      !validateAudioProcessor(settings.audio.processor))
+  )
     return false;
   return true;
 }
