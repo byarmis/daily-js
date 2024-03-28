@@ -5169,8 +5169,11 @@ stopTestPeerToPeerCallQuality() instead`);
     }
     // Need to access store directly since when participant muted their audio we
     // don't have access to their audio tracks in this._participants
-    const state = window.store.getState();
-    for (const streamId in state.streams) {
+    const state =
+      window._daily?.instances?.[
+        this._callFrameId
+      ]?.callMachine?.store?.getState();
+    for (const streamId in state?.streams) {
       const streamData = state.streams[streamId];
       if (
         streamData &&
