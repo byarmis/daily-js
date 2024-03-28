@@ -14,9 +14,28 @@ function registerPendingCallInstance(callFrameId) {
     window._daily.instances[callFrameId] || {};
 }
 
+function unregisterPendingCallInstance(callFrameId) {
+  const pendings = window._daily?.pendings;
+  if (!pendings) {
+    return;
+  }
+  const index = pendings.indexOf(callFrameId);
+  if (index === -1) {
+    return;
+  }
+  pendings.splice(index, 1);
+}
+
 export default class CallObjectLoader {
-  constructor() {
+  /**
+   * Create a new call object bundle loader.
+   *
+   * @param callFrameId A string identifying this call instance, to distinguish
+   * messages going between the call instance and the call machine from others.
+   */
+  constructor(callFrameId) {
     this._currentLoad = null;
+    this._callFrameId = callFrameId;
   }
 
   /**
@@ -28,8 +47,6 @@ export default class CallObjectLoader {
    * Since the call object bundle sets up global state in the same scope as the
    * app code consuming it, it only needs to be loaded and executed once ever.
    *
-   * @param callFrameId A string identifying this call instance, to distinguish
-   *  messages going between the call instance and the call machine from others.
    * @param avoidEval Whether to use the new eval-less loading mechanism on web
    *  (LoadAttempt_Web) instead of the legacy loading mechanism
    *  (LoadAttempt_ReactNative).
@@ -38,14 +55,14 @@ export default class CallObjectLoader {
    * @param failureCallback Callback function that takes an error message and a
    *   boolean indicating whether an automatic retry is slated to occur.
    */
-  load(callFrameId, avoidEval, successCallback, failureCallback) {
+  load(avoidEval, successCallback, failureCallback) {
     if (this.loaded) {
-      window._daily.instances[callFrameId].callMachine.reset();
+      window._daily.instances[this._callFrameId].callMachine.reset();
       successCallback(true); // true = "this load() was a no-op"
       return;
     }
 
-    registerPendingCallInstance(callFrameId);
+    registerPendingCallInstance(this._callFrameId);
 
     // Cancel current load, if any
     this._currentLoad && this._currentLoad.cancel();
@@ -56,7 +73,14 @@ export default class CallObjectLoader {
       () => {
         successCallback(false); // false = "this load() wasn't a no-op"
       },
-      failureCallback
+      (errorMsg, willRetry) => {
+        if (!willRetry) {
+          // TODO: remove
+          console.log('[pk] unregistering call instance on failure!');
+          unregisterPendingCallInstance(this._callFrameId);
+        }
+        failureCallback(errorMsg, willRetry);
+      }
     );
     this._currentLoad.start();
   }
@@ -66,6 +90,9 @@ export default class CallObjectLoader {
    */
   cancel() {
     this._currentLoad && this._currentLoad.cancel();
+    // TODO: remove
+    console.log('[pk] unregistering call instance on cancel!');
+    unregisterPendingCallInstance(this._callFrameId);
   }
 
   /**

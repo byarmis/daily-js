@@ -1182,8 +1182,14 @@ export default class DailyIframe extends EventEmitter {
     if (properties.inputSettings && properties.inputSettings.video) {
       this._preloadCache.inputSettings.video = properties.inputSettings.video;
     }
+    // This ID is used internally to coordinate communication between this
+    // Daily instance and the call machine. It currently seeps into many of
+    // the externally facing daily-js events but should have no external use.
+    // TODO: Remove this id from external daily-js events and rename to
+    //       _callClientId
+    this._callFrameId = randomStringId();
     this._callObjectLoader = this._callObjectMode
-      ? new CallObjectLoader()
+      ? new CallObjectLoader(this._callFrameId)
       : null;
     this._callState = DAILY_STATE_NEW; // only update via updateIsPreparingToJoin() or _updateCallState()
     this._isPreparingToJoin = false; // only update via _updateCallState()
@@ -1204,12 +1210,6 @@ export default class DailyIframe extends EventEmitter {
     this._localAudioLevel = 0;
     this._remoteParticipantsAudioLevel = {};
 
-    // This ID is used internally to coordinate communication between this
-    // Daily instance and the call machine. It currently seeps into many of
-    // the externally facing daily-js events but should have no external use.
-    // TODO: Remove this id from external daily-js events and rename to
-    //       _callClientId
-    this._callFrameId = randomStringId();
     this._messageChannel = isReactNative()
       ? new ReactNativeMessageChannel()
       : new WebMessageChannel();
@@ -2582,7 +2582,6 @@ export default class DailyIframe extends EventEmitter {
         this._callObjectLoader.cancel();
         const startTime = Date.now();
         this._callObjectLoader.load(
-          this._callFrameId,
           !!this.properties.dailyConfig?.avoidEval,
           (wasNoOp) => {
             this._bundleLoadTime = wasNoOp ? 'no-op' : Date.now() - startTime;
