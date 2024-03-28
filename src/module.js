@@ -5265,7 +5265,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (callInst) {
       callInst.sendMessageToCallMachine({
         action: DAILY_METHOD_TRANSMIT_LOG,
-        level: 'error',
+        level: 'warn',
         code: this.strictMode ? 9990 : 9992,
       });
     } else {
