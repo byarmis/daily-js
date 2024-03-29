@@ -75,8 +75,6 @@ export default class CallObjectLoader {
       },
       (errorMsg, willRetry) => {
         if (!willRetry) {
-          // TODO: remove
-          console.log('[pk] unregistering call instance on failure!');
           unregisterPendingCallInstance(this._callFrameId);
         }
         failureCallback(errorMsg, willRetry);
@@ -90,8 +88,6 @@ export default class CallObjectLoader {
    */
   cancel() {
     this._currentLoad && this._currentLoad.cancel();
-    // TODO: remove
-    console.log('[pk] unregistering call instance on cancel!');
     unregisterPendingCallInstance(this._callFrameId);
   }
 
