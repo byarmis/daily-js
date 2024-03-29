@@ -694,6 +694,7 @@ export interface DailyStartScreenShare {
   displayMediaOptions?:
     | DailyDisplayMediaStreamOptions
     | DailyDisplayMediaStreamOptionsElectron;
+  mediaStream?: MediaStream;
   screenVideoSendSettings?:
     | DailyVideoSendSettings
     | DailyScreenVideoSendSettingsPreset;
