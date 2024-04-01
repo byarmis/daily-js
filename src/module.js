@@ -238,6 +238,7 @@ import {
 import {
   isReactNative,
   isReactNativeIOS,
+  browserSupportsLocalAudioLevelObservers,
   browserVideoSupported_p,
   getUserAgent,
   isFullscreenSupported,
@@ -921,6 +922,37 @@ const PARTICIPANT_PROPS = {
 //
 //
 //
+
+function maybeCreatePromiseAnyPolyfill() {
+  // Support to Promise.any has only been introduced on RN 0.70.6
+  // https://github.com/facebook/react-native/releases/tag/v0.70.6
+  // It's also not supported before Chrome 85, Firefox 79, and Safari 14
+  // As spec: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any
+  // The Promise.any() static method takes an iterable of promises as input and returns a single Promise.
+  // This returned promise fulfills when any of the input's promises fulfills, with this first fulfillment value.
+  // It rejects when all of the input's promises reject (including when an empty iterable is passed)
+  if (!Promise.any) {
+    Promise.any = async (promises) => {
+      return new Promise((resolve, reject) => {
+        let errors = [];
+        promises.forEach((promise) =>
+          Promise.resolve(promise)
+            .then((value) => {
+              resolve(value);
+            })
+            .catch((error) => {
+              errors.push(error);
+              if (errors.length === promises.length) {
+                reject(errors);
+              }
+            })
+        );
+      });
+    };
+  }
+}
+
+maybeCreatePromiseAnyPolyfill();
 
 export default class DailyIframe extends EventEmitter {
   //
@@ -2033,6 +2065,11 @@ export default class DailyIframe extends EventEmitter {
 
   startLocalAudioLevelObserver(interval) {
     methodNotSupportedInReactNative();
+    if (!browserSupportsLocalAudioLevelObservers()) {
+      throw new Error(
+        'startLocalAudioLevelObserver() is not supported on this browser'
+      );
+    }
     this.validateAudioLevelInterval(interval);
     if (!this._callMachineInitialized) {
       this._preloadCache.localAudioLevelObserver = {
