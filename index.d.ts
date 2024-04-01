@@ -694,7 +694,13 @@ export interface DailyStartScreenShare {
   displayMediaOptions?:
     | DailyDisplayMediaStreamOptions
     | DailyDisplayMediaStreamOptionsElectron;
-  mediaStream?: MediaStream;
+  screenVideoSendSettings?:
+    | DailyVideoSendSettings
+    | DailyScreenVideoSendSettingsPreset;
+}
+
+export interface DailyStartScreenShareFromStream {
+  mediaStream: MediaStream;
   screenVideoSendSettings?:
     | DailyVideoSendSettings
     | DailyScreenVideoSendSettingsPreset;
@@ -702,7 +708,8 @@ export interface DailyStartScreenShare {
 
 export type DailyStartScreenShareOptions =
   | DailyScreenCaptureOptions
-  | DailyStartScreenShare;
+  | DailyStartScreenShare
+  | DailyStartScreenShareFromStream;
 
 export interface DailyNetworkStats {
   quality: number;
