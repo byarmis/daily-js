@@ -2064,8 +2064,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   startLocalAudioLevelObserver(interval) {
-    methodNotSupportedInReactNative();
-    if (!browserSupportsLocalAudioLevelObservers()) {
+    if (!browserSupportsLocalAudioLevelObservers() && !isReactNative()) {
       throw new Error(
         'startLocalAudioLevelObserver() is not supported on this browser'
       );
@@ -2096,8 +2095,7 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
-  async stopLocalAudioLevelObserver() {
-    methodNotSupportedInReactNative();
+  stopLocalAudioLevelObserver() {
     this._preloadCache.localAudioLevelObserver = null;
     this._localAudioLevel = 0;
     this.sendMessageToCallMachine({
@@ -2106,7 +2104,6 @@ export default class DailyIframe extends EventEmitter {
   }
 
   startRemoteParticipantsAudioLevelObserver(interval) {
-    methodNotSupportedInReactNative();
     this.validateAudioLevelInterval(interval);
     if (!this._callMachineInitialized) {
       this._preloadCache.remoteParticipantsAudioLevelObserver = {
@@ -2133,8 +2130,7 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
-  async stopRemoteParticipantsAudioLevelObserver() {
-    methodNotSupportedInReactNative();
+  stopRemoteParticipantsAudioLevelObserver() {
     this._preloadCache.remoteParticipantsAudioLevelObserver = null;
     this._remoteParticipantsAudioLevel = {};
     this.sendMessageToCallMachine({
