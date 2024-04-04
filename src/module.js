@@ -238,6 +238,7 @@ import {
 import {
   isReactNative,
   isReactNativeIOS,
+  browserSupportsLocalAudioLevelObservers,
   browserVideoSupported_p,
   getUserAgent,
   isFullscreenSupported,
@@ -922,6 +923,37 @@ const PARTICIPANT_PROPS = {
 //
 //
 
+function maybeCreatePromiseAnyPolyfill() {
+  // Support to Promise.any has only been introduced on RN 0.70.6
+  // https://github.com/facebook/react-native/releases/tag/v0.70.6
+  // It's also not supported before Chrome 85, Firefox 79, and Safari 14
+  // As spec: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any
+  // The Promise.any() static method takes an iterable of promises as input and returns a single Promise.
+  // This returned promise fulfills when any of the input's promises fulfills, with this first fulfillment value.
+  // It rejects when all of the input's promises reject (including when an empty iterable is passed)
+  if (!Promise.any) {
+    Promise.any = async (promises) => {
+      return new Promise((resolve, reject) => {
+        let errors = [];
+        promises.forEach((promise) =>
+          Promise.resolve(promise)
+            .then((value) => {
+              resolve(value);
+            })
+            .catch((error) => {
+              errors.push(error);
+              if (errors.length === promises.length) {
+                reject(errors);
+              }
+            })
+        );
+      });
+    };
+  }
+}
+
+maybeCreatePromiseAnyPolyfill();
+
 export default class DailyIframe extends EventEmitter {
   //
   // static methods
@@ -1182,8 +1214,14 @@ export default class DailyIframe extends EventEmitter {
     if (properties.inputSettings && properties.inputSettings.video) {
       this._preloadCache.inputSettings.video = properties.inputSettings.video;
     }
+    // This ID is used internally to coordinate communication between this
+    // Daily instance and the call machine. It currently seeps into many of
+    // the externally facing daily-js events but should have no external use.
+    // TODO: Remove this id from external daily-js events and rename to
+    //       _callClientId
+    this._callFrameId = randomStringId();
     this._callObjectLoader = this._callObjectMode
-      ? new CallObjectLoader()
+      ? new CallObjectLoader(this._callFrameId)
       : null;
     this._callState = DAILY_STATE_NEW; // only update via updateIsPreparingToJoin() or _updateCallState()
     this._isPreparingToJoin = false; // only update via _updateCallState()
@@ -1204,12 +1242,6 @@ export default class DailyIframe extends EventEmitter {
     this._localAudioLevel = 0;
     this._remoteParticipantsAudioLevel = {};
 
-    // This ID is used internally to coordinate communication between this
-    // Daily instance and the call machine. It currently seeps into many of
-    // the externally facing daily-js events but should have no external use.
-    // TODO: Remove this id from external daily-js events and rename to
-    //       _callClientId
-    this._callFrameId = randomStringId();
     this._messageChannel = isReactNative()
       ? new ReactNativeMessageChannel()
       : new WebMessageChannel();
@@ -1820,9 +1852,8 @@ export default class DailyIframe extends EventEmitter {
       }
     }
 
-    // now that input settings may have been stripped of platform-unsupported
-    // settings, check again for validity (it may now be empty)
-    if (!validateInputSettings(inputSettings)) {
+    // if input settings are empty, no-op right away
+    if (!(inputSettings.video || inputSettings.audio)) {
       return this._getInputSettings();
     }
 
@@ -2033,7 +2064,11 @@ export default class DailyIframe extends EventEmitter {
   }
 
   startLocalAudioLevelObserver(interval) {
-    methodNotSupportedInReactNative();
+    if (!browserSupportsLocalAudioLevelObservers() && !isReactNative()) {
+      throw new Error(
+        'startLocalAudioLevelObserver() is not supported on this browser'
+      );
+    }
     this.validateAudioLevelInterval(interval);
     if (!this._callMachineInitialized) {
       this._preloadCache.localAudioLevelObserver = {
@@ -2060,8 +2095,7 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
-  async stopLocalAudioLevelObserver() {
-    methodNotSupportedInReactNative();
+  stopLocalAudioLevelObserver() {
     this._preloadCache.localAudioLevelObserver = null;
     this._localAudioLevel = 0;
     this.sendMessageToCallMachine({
@@ -2070,7 +2104,6 @@ export default class DailyIframe extends EventEmitter {
   }
 
   startRemoteParticipantsAudioLevelObserver(interval) {
-    methodNotSupportedInReactNative();
     this.validateAudioLevelInterval(interval);
     if (!this._callMachineInitialized) {
       this._preloadCache.remoteParticipantsAudioLevelObserver = {
@@ -2097,8 +2130,7 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
-  async stopRemoteParticipantsAudioLevelObserver() {
-    methodNotSupportedInReactNative();
+  stopRemoteParticipantsAudioLevelObserver() {
     this._preloadCache.remoteParticipantsAudioLevelObserver = null;
     this._remoteParticipantsAudioLevel = {};
     this.sendMessageToCallMachine({
@@ -2583,7 +2615,6 @@ export default class DailyIframe extends EventEmitter {
         this._callObjectLoader.cancel();
         const startTime = Date.now();
         this._callObjectLoader.load(
-          this._callFrameId,
           !!this.properties.dailyConfig?.avoidEval,
           (wasNoOp) => {
             this._bundleLoadTime = wasNoOp ? 'no-op' : Date.now() - startTime;
@@ -2754,11 +2785,13 @@ export default class DailyIframe extends EventEmitter {
         if (participants) {
           for (var id in participants) {
             if (this._callObjectMode) {
-              Participant.addTracks(participants[id]);
-              Participant.addCustomTracks(participants[id]);
+              const store = this._callMachine().store;
+              Participant.addTracks(participants[id], store);
+              Participant.addCustomTracks(participants[id], store);
               Participant.addLegacyTracks(
                 participants[id],
-                this._participants[id]
+                this._participants[id],
+                store
               );
             }
             this._participants[id] = { ...participants[id] };
@@ -4382,11 +4415,13 @@ stopTestPeerToPeerCallQuality() instead`);
         if (msg.participant && msg.participant.session_id) {
           let id = msg.participant.local ? 'local' : msg.participant.session_id;
           if (this._callObjectMode) {
-            Participant.addTracks(msg.participant);
-            Participant.addCustomTracks(msg.participant);
+            const store = this._callMachine().store;
+            Participant.addTracks(msg.participant, store);
+            Participant.addCustomTracks(msg.participant, store);
             Participant.addLegacyTracks(
               msg.participant,
-              this._participants[id]
+              this._participants[id],
+              store
             );
           }
 
@@ -5166,8 +5201,8 @@ stopTestPeerToPeerCallQuality() instead`);
     }
     // Need to access store directly since when participant muted their audio we
     // don't have access to their audio tracks in this._participants
-    const state = window.store.getState();
-    for (const streamId in state.streams) {
+    const state = this._callMachine()?.store?.getState();
+    for (const streamId in state?.streams) {
       const streamData = state.streams[streamId];
       if (
         streamData &&
@@ -5262,7 +5297,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (callInst) {
       callInst.sendMessageToCallMachine({
         action: DAILY_METHOD_TRANSMIT_LOG,
-        level: 'error',
+        level: 'warn',
         code: this.strictMode ? 9990 : 9992,
       });
     } else {
@@ -5347,6 +5382,10 @@ stopTestPeerToPeerCallQuality() instead`);
     hub.run((currentHub) => {
       currentHub.captureException(new Error(msg));
     });
+  }
+
+  _callMachine() {
+    return window._daily?.instances?.[this._callFrameId]?.callMachine;
   }
 }
 
@@ -5625,15 +5664,16 @@ function validateSendSettings(sendSettings, callObject) {
 function validateInputSettings(settings) {
   if (typeof settings !== 'object') return false;
   if (
-    !(
-      (settings.video && typeof settings.video === 'object') ||
-      (settings.audio && typeof settings.audio === 'object')
-    )
+    settings.video &&
+    (typeof settings.video !== 'object' ||
+      !validateVideoProcessor(settings.video.processor))
   )
     return false;
-  if (settings.video && !validateVideoProcessor(settings.video.processor))
-    return false;
-  if (settings.audio && !validateAudioProcessor(settings.audio.processor))
+  if (
+    settings.audio &&
+    (typeof settings.audio !== 'object' ||
+      !validateAudioProcessor(settings.audio.processor))
+  )
     return false;
   return true;
 }

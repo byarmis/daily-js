@@ -144,18 +144,33 @@ function isVideoProcessingSupportedInBrowser_Banuba() {
 
   const browserName = getBrowserName();
 
-  // Exclude Safari 15.0..<15.4 on iOS, due to a bug.
+  // Banuba requires OpenGL 4.3 and up which is not available on Safari < 15
+  // https://docs.banuba.com/face-ar-sdk-v1/overview/system_requirements
+  // Also, we exclude Safari 15.0..<15.4 on iOS, due to a bug.
   // See underyling bug https://bugs.webkit.org/show_bug.cgi?id=232195, which
   // manifested as https://bugs.webkit.org/show_bug.cgi?id=232076, which led
   // Banuba to recommend Safari-specific workaround https://docs.banuba.com/face-ar-sdk-v1/web/web_known_issues/#effect-animations-are-delayed-on-safari.
   // Given that the underlying bug has since been fixed, for now it makes sense
-  // to simply exclude the problmatic versions of Safari, especially because
-  // they are tied to now-rather-old iOS versions.
-  if (isIOS() && browserName === 'Safari') {
+  // to simply exclude the problematic versions of Safari, especially because
+  // they are tied to now-rather-old OS versions.
+  if (browserName === 'Safari') {
     const version = getSafariVersion();
-    if (version.major === 15 && version.minor < 4) {
+    if (version.major < 15 || (version.major === 15 && version.minor < 4)) {
       return false;
     }
+  }
+
+  // Banuba will crash the browser on Chrome versions older than 77
+  if (browserName === 'Chrome') {
+    const version = getChromeVersion();
+    return version.major >= 77;
+  }
+
+  // Banuba crashes in older versions with:
+  // Error: GPU operations complete wait failed
+  if (browserName === 'Firefox') {
+    const version = getFirefoxVersion();
+    return version.major >= 97;
   }
 
   return ['Chrome', 'Firefox', 'Safari'].includes(browserName);
@@ -170,6 +185,15 @@ export function isAudioProcessingSupported() {
   // But Krisp uses an AudioWorkletNode, which isn't available in older Safari
   if (typeof AudioWorkletNode === 'undefined') return false;
   return supportedBrowsersForAudioProcessors.includes(getBrowserName());
+}
+
+export function browserSupportsLocalAudioLevelObservers() {
+  // local audio level observers depend on AudioContext Worklets.addModule(),
+  // which isn't available on older Safari version < 14.1 (Same as
+  // AudioWorkletNode)
+  // https://developer.mozilla.org/en-US/docs/Web/API/Worklet/addModule
+  if (typeof AudioWorkletNode === 'undefined') return false;
+  return true;
 }
 
 export function canUnifiedPlan() {
@@ -236,13 +260,13 @@ export function browserNeedsUpgrade() {
     case 'Chrome':
       // Includes Chromium-based browsers
       version = getChromeVersion();
-      return version.major && version.major > 0 && version.major < 61;
+      return version.major && version.major > 0 && version.major < 75;
     case 'Firefox':
       version = getFirefoxVersion();
-      return version.major < 78;
+      return version.major < 91;
     case 'Safari':
       version = getSafariVersion();
-      return version.major < 12;
+      return version.major < 13 || (version.major === 13 && version.minor < 1);
     default:
       return true;
   }

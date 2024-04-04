@@ -699,9 +699,17 @@ export interface DailyStartScreenShare {
     | DailyScreenVideoSendSettingsPreset;
 }
 
+export interface DailyStartScreenShareFromStream {
+  mediaStream: MediaStream;
+  screenVideoSendSettings?:
+    | DailyVideoSendSettings
+    | DailyScreenVideoSendSettingsPreset;
+}
+
 export type DailyStartScreenShareOptions =
   | DailyScreenCaptureOptions
-  | DailyStartScreenShare;
+  | DailyStartScreenShare
+  | DailyStartScreenShareFromStream;
 
 export interface DailyNetworkStats {
   quality: number;
@@ -764,6 +772,7 @@ export interface DailyCpuLoadStats {
         fps: number;
         frameDecodeTimeSec: number;
         interFrameDelayStandardDeviation: number;
+        cpuUsageBasedOnTargetDecode: number;
       }[];
     };
   };
