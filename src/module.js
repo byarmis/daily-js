@@ -1799,6 +1799,7 @@ export default class DailyIframe extends EventEmitter {
   // In the future:
   // { video: {...}, audio: {...}, screenVideo: {...}, screenAudio: {...} }
   getInputSettings() {
+    methodNotSupportedInReactNative();
     return new Promise((resolve) => {
       resolve(this._getInputSettings());
     });
@@ -1834,6 +1835,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async updateInputSettings(inputSettings) {
+    methodNotSupportedInReactNative();
     if (!validateInputSettings(inputSettings)) {
       console.error(inputSettingsValidationHelpMsg());
       return Promise.reject(inputSettingsValidationHelpMsg());
