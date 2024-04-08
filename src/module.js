@@ -224,6 +224,7 @@ import {
   DAILY_METHOD_TEST_P2P_CALL_QUALITY,
   DAILY_METHOD_START_DIALOUT,
   DAILY_METHOD_SEND_DTMF,
+  DAILY_METHOD_CALL_TRANSFER,
   DAILY_METHOD_STOP_DIALOUT,
   DAILY_EVENT_DIALIN_READY,
   DAILY_EVENT_DIALIN_CONNECTED,
@@ -3396,6 +3397,34 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
+  async callTransfer(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'callTransfer()');
+    if (!args) {
+      throw new Error(
+        `sessionId,fromEndPoint,toEndPoint are mandatory parameter`
+      );
+    }
+    validateCallTransfer(args);
+
+    return new Promise((resolve, reject) => {
+      const k = (msg) => {
+        if (msg.error) {
+          reject(msg.error);
+        } else {
+          resolve(msg);
+        }
+      };
+
+      this.sendMessageToCallMachine(
+        {
+          action: DAILY_METHOD_CALL_TRANSFER,
+          ...args,
+        },
+        k
+      );
+    });
+  }
+
   async sendDTMF(args) {
     methodOnlySupportedAfterJoin(this._callState, 'sendDTMF()');
 
@@ -6178,6 +6207,26 @@ function validateConfigPropType(prop, propType) {
       //   "Internal programming error: we've defined our config prop types wrong"
       // );
       return false;
+  }
+}
+
+function validateCallTransfer({ sessionId, fromEndPoint, toEndPoint }) {
+  if (!(sessionId && fromEndPoint && toEndPoint)) {
+    throw new Error(
+      `sessionId,fromEndPoint,toEndPoint are mandatory parameter`
+    );
+  }
+  if (
+    typeof sessionId !== 'string' ||
+    typeof fromEndPoint !== 'string' ||
+    typeof toEndPoint !== 'string'
+  ) {
+    throw new Error(
+      `sessionId,fromEndPoint,toEndPoint should be of string type`
+    );
+  }
+  if (fromEndPoint === toEndPoint) {
+    throw new Error(`"fromEndPoint" and "toEndPoint" cannot be same`);
   }
 }
 

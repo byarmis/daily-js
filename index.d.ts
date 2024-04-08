@@ -1953,6 +1953,12 @@ export interface DailyMediaDeviceInfo extends MediaDeviceInfo {
   facing?: DailyCameraFacingMode;
 }
 
+export interface DailyCallTransferOptions {
+  sessionId: string;
+  fromEndPoint: string;
+  toEndPoint: string;
+}
+
 export interface DailyCall {
   iframe(): HTMLIFrameElement | null;
   join(properties?: DailyCallOptions): Promise<DailyParticipantsObject | void>;
@@ -2182,6 +2188,7 @@ export interface DailyCall {
   ): Promise<{ session?: DailyDialOutSession }>;
   stopDialOut(options: { sessionId: string }): Promise<void>;
   sendDTMF(options: { sessionId: string; tones: string }): Promise<void>;
+  callTransfer(options: DailyCallTransferOptions): Promise<void>;
 }
 
 declare const Daily: DailyCallFactory & DailyCallStaticUtils;
