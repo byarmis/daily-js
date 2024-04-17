@@ -67,6 +67,7 @@ export type DailyEvent =
   | 'network-quality-change'
   | 'network-connection'
   | 'cpu-load-change'
+  | 'face-counts-updated'
   | 'fullscreen'
   | 'exited-fullscreen'
   | 'error'
@@ -1005,6 +1006,10 @@ export interface DailyBackgroundBlurInputSettings {
   };
 }
 
+export interface DailyFaceDetectionInputSettings {
+  type: 'face-detection';
+}
+
 export interface DailyBackgroundImageInputSettings {
   type: 'background-image';
   config: {
@@ -1016,7 +1021,8 @@ export interface DailyBackgroundImageInputSettings {
 export type DailyInputVideoProcessorSettings =
   | DailyNoInputSettings
   | DailyBackgroundBlurInputSettings
-  | DailyBackgroundImageInputSettings;
+  | DailyBackgroundImageInputSettings
+  | DailyFaceDetectionInputSettings;
 
 export interface DailyInputVideoSettings {
   processor?: DailyInputVideoProcessorSettings;
@@ -1296,6 +1302,11 @@ export interface DailyEventObjectCpuLoadEvent {
   action: Extract<DailyEvent, 'cpu-load-change'>;
   cpuLoadState: 'low' | 'high';
   cpuLoadStateReason: 'encode' | 'decode' | 'scheduleDuration' | 'none'; // We are currently not using the Inter frame Delay to change the cpu load state
+}
+
+export interface DailyEventObjectFaceCounts {
+  action: Extract<DailyEvent, 'face-counts-updated'>;
+  faceCounts: number;
 }
 
 export type NetworkConnectionType = 'signaling' | 'peer-to-peer' | 'sfu';
@@ -1641,6 +1652,8 @@ export type DailyEventObject<T extends DailyEvent = any> =
     ? DailyEventObjectNetworkQualityEvent
     : T extends DailyEventObjectCpuLoadEvent['action']
     ? DailyEventObjectCpuLoadEvent
+    : T extends DailyEventObjectFaceCounts['action']
+    ? DailyEventObjectFaceCounts
     : T extends DailyEventObjectNetworkConnectionEvent['action']
     ? DailyEventObjectNetworkConnectionEvent
     : T extends DailyEventObjectActiveSpeakerChange['action']
