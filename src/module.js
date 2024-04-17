@@ -4736,12 +4736,14 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_LOCAL_AUDIO_LEVEL:
         {
           this._localAudioLevel = msg.audioLevel;
+          this._preloadCache.localAudioLevelObserver = null; // clear cache, if any
           this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_REMOTE_PARTICIPANTS_AUDIO_LEVEL:
         {
           this._remoteParticipantsAudioLevel = msg.participantsAudioLevel;
+          this._preloadCache.remoteParticipantsAudioLevelObserver = null; // clear cache, if any
           this.emitDailyJSEvent(msg);
         }
         break;
