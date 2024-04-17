@@ -2627,30 +2627,30 @@ export default class DailyIframe extends EventEmitter {
               this.emit(DAILY_EVENT_LOADED, { action: DAILY_EVENT_LOADED });
             resolve();
           },
-          (errorMsg, willRetry) => {
+          (error, willRetry) => {
             this.emit(DAILY_EVENT_LOAD_ATTEMPT_FAILED, {
               action: DAILY_EVENT_LOAD_ATTEMPT_FAILED,
-              errorMsg,
+              error,
             });
             if (!willRetry) {
               this._updateCallState(DAILY_STATE_ERROR);
               this.resetMeetingDependentVars();
-              const error = {
+              const dailyError = {
                 action: DAILY_EVENT_ERROR,
-                errorMsg,
+                errorMsg: error.msg,
                 error: {
                   type: 'connection-error',
                   msg: 'Failed to load call object bundle.',
                   details: {
                     on: 'load',
-                    sourceError: new Error(errorMsg),
+                    sourceError: error,
                     bundleUrl: callObjectBundleUrl(),
                   },
                 },
               };
-              this._maybeSendToSentry(error);
-              this.emit(DAILY_EVENT_ERROR, error);
-              reject(errorMsg);
+              this._maybeSendToSentry(dailyError);
+              this.emit(DAILY_EVENT_ERROR, dailyError);
+              reject(error.msg);
             }
           }
         );
@@ -5332,6 +5332,7 @@ stopTestPeerToPeerCallQuality() instead`);
         new Sentry.Integrations.GlobalHandlers({
           onunhandledrejection: false,
         }),
+        new Sentry.Integrations.HttpContext(),
       ],
       environment: env,
     });
@@ -5364,10 +5365,12 @@ stopTestPeerToPeerCallQuality() instead`);
         hub.setTag('workerGroup', error.error.details.workerGroup);
       error.error.details?.geoGroup &&
         hub.setTag('geoGroup', error.error.details.geoGroup);
-      error.error.details?.bundleUrl &&
-        hub.setTag('bundleUrl', error.error.details.bundleUrl);
       error.error.details?.on &&
         hub.setTag('connectionAttempt', error.error.details.on);
+      if (error.error.details.bundleUrl) {
+        hub.setTag('bundleUrl', error.error.details.bundleUrl);
+        hub.setTag('bundleError', error.error.details.sourceError.type);
+      }
     }
     hub.setTags({
       callMode: this._callObjectMode
