@@ -1391,6 +1391,7 @@ export default class DailyIframe extends EventEmitter {
       this._callFrameId = undefined;
     }
     _callInstance = undefined;
+    delete window._daily.instances[this._callFrameId];
   }
 
   isDestroyed() {
@@ -5317,6 +5318,7 @@ stopTestPeerToPeerCallQuality() instead`);
         level: 'warn',
         code: this.strictMode ? 9990 : 9992,
       });
+      this._delayDuplicateInstanceLog = false;
     } else {
       // callMachineInitialized most likely will only fire once and
       // it's unclear which call machine will handle it.
