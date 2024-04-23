@@ -6210,7 +6210,12 @@ function validateConfigPropType(prop, propType) {
   }
 }
 
-function validateCallTransfer({ sessionId, fromEndPoint, toEndPoint }) {
+function validateCallTransfer({
+  sessionId,
+  fromEndPoint,
+  toEndPoint,
+  useSipRefer,
+}) {
   if (!(sessionId && fromEndPoint && toEndPoint)) {
     throw new Error(
       `sessionId,fromEndPoint,toEndPoint are mandatory parameter`
@@ -6227,6 +6232,24 @@ function validateCallTransfer({ sessionId, fromEndPoint, toEndPoint }) {
   }
   if (fromEndPoint === toEndPoint) {
     throw new Error(`"fromEndPoint" and "toEndPoint" cannot be same`);
+  }
+  if (
+    useSipRefer &&
+    !(toEndPoint.startsWith('sip:') && fromEndPoint.startsWith('sip:'))
+  ) {
+    throw new Error(
+      `"fromEndPoint" and "toEndPoint" must be "sip" to use "sipRefer`
+    );
+  }
+  if (!(toEndPoint.startsWith('sip:') || toEndPoint.startsWith('+'))) {
+    throw new Error(
+      `toEndPoint: ${toEndPoint} must starts with either "sip:" or "+"`
+    );
+  }
+  if (!(fromEndPoint.startsWith('sip:') || fromEndPoint.startsWith('+'))) {
+    throw new Error(
+      `fromEndPoint: ${fromEndPoint} must starts with either "sip:" or "+"`
+    );
   }
 }
 

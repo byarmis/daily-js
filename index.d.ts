@@ -1957,6 +1957,7 @@ export interface DailyCallTransferOptions {
   sessionId: string;
   fromEndPoint: string;
   toEndPoint: string;
+  useSipRefer?: boolean;
 }
 
 export interface DailyCall {
