@@ -1385,13 +1385,14 @@ export default class DailyIframe extends EventEmitter {
       console.log('could not emit call-instance-destroyed');
     }
 
+    _callInstance = undefined;
+    window?._daily?.instances &&
+      delete window._daily.instances[this._callFrameId];
     if (this.strictMode) {
       // we set this to undefined in strictMode so that all calls to
       // the underlying channel's sendMessageToCallMachine will fail
       this._callFrameId = undefined;
     }
-    _callInstance = undefined;
-    delete window._daily.instances[this._callFrameId];
   }
 
   isDestroyed() {
