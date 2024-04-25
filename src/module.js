@@ -86,6 +86,7 @@ import {
   DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED,
   DAILY_EVENT_NETWORK_QUALITY_CHANGE,
   DAILY_EVENT_CPU_LOAD_CHANGE,
+  DAILY_EVENT_FACE_COUNTS_UPDATED,
   DAILY_EVENT_ACTIVE_SPEAKER_CHANGE,
   DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE,
   DAILY_EVENT_FULLSCREEN,
@@ -357,6 +358,7 @@ export {
   DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED,
   DAILY_EVENT_NETWORK_QUALITY_CHANGE,
   DAILY_EVENT_CPU_LOAD_CHANGE,
+  DAILY_EVENT_FACE_COUNTS_UPDATED,
   DAILY_EVENT_ACTIVE_SPEAKER_CHANGE,
   DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE,
   DAILY_EVENT_FULLSCREEN,
@@ -1383,12 +1385,14 @@ export default class DailyIframe extends EventEmitter {
       console.log('could not emit call-instance-destroyed');
     }
 
+    _callInstance = undefined;
+    window?._daily?.instances &&
+      delete window._daily.instances[this._callFrameId];
     if (this.strictMode) {
       // we set this to undefined in strictMode so that all calls to
       // the underlying channel's sendMessageToCallMachine will fail
       this._callFrameId = undefined;
     }
-    _callInstance = undefined;
   }
 
   isDestroyed() {
@@ -1799,6 +1803,7 @@ export default class DailyIframe extends EventEmitter {
   // In the future:
   // { video: {...}, audio: {...}, screenVideo: {...}, screenAudio: {...} }
   getInputSettings() {
+    methodNotSupportedInReactNative();
     return new Promise((resolve) => {
       resolve(this._getInputSettings());
     });
@@ -1834,6 +1839,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async updateInputSettings(inputSettings) {
+    methodNotSupportedInReactNative();
     if (!validateInputSettings(inputSettings)) {
       console.error(inputSettingsValidationHelpMsg());
       return Promise.reject(inputSettingsValidationHelpMsg());
@@ -2625,30 +2631,30 @@ export default class DailyIframe extends EventEmitter {
               this.emit(DAILY_EVENT_LOADED, { action: DAILY_EVENT_LOADED });
             resolve();
           },
-          (errorMsg, willRetry) => {
+          (error, willRetry) => {
             this.emit(DAILY_EVENT_LOAD_ATTEMPT_FAILED, {
               action: DAILY_EVENT_LOAD_ATTEMPT_FAILED,
-              errorMsg,
+              error,
             });
             if (!willRetry) {
               this._updateCallState(DAILY_STATE_ERROR);
               this.resetMeetingDependentVars();
-              const error = {
+              const dailyError = {
                 action: DAILY_EVENT_ERROR,
-                errorMsg,
+                errorMsg: error.msg,
                 error: {
                   type: 'connection-error',
                   msg: 'Failed to load call object bundle.',
                   details: {
                     on: 'load',
-                    sourceError: new Error(errorMsg),
+                    sourceError: error,
                     bundleUrl: callObjectBundleUrl(),
                   },
                 },
               };
-              this._maybeSendToSentry(error);
-              this.emit(DAILY_EVENT_ERROR, error);
-              reject(errorMsg);
+              this._maybeSendToSentry(dailyError);
+              this.emit(DAILY_EVENT_ERROR, dailyError);
+              reject(error.msg);
             }
           }
         );
@@ -4606,6 +4612,17 @@ stopTestPeerToPeerCallQuality() instead`);
           }
         }
         break;
+      case DAILY_EVENT_FACE_COUNTS_UPDATED:
+        {
+          if (msg && msg.faceCounts !== undefined) {
+            try {
+              this.emit(msg.action, msg);
+            } catch (e) {
+              console.log('could not emit', msg, e);
+            }
+          }
+        }
+        break;
       case DAILY_EVENT_ACTIVE_SPEAKER_CHANGE:
         {
           let { activeSpeaker } = msg;
@@ -4721,12 +4738,14 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_LOCAL_AUDIO_LEVEL:
         {
           this._localAudioLevel = msg.audioLevel;
+          this._preloadCache.localAudioLevelObserver = null; // clear cache, if any
           this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_REMOTE_PARTICIPANTS_AUDIO_LEVEL:
         {
           this._remoteParticipantsAudioLevel = msg.participantsAudioLevel;
+          this._preloadCache.remoteParticipantsAudioLevelObserver = null; // clear cache, if any
           this.emitDailyJSEvent(msg);
         }
         break;
@@ -5300,6 +5319,7 @@ stopTestPeerToPeerCallQuality() instead`);
         level: 'warn',
         code: this.strictMode ? 9990 : 9992,
       });
+      this._delayDuplicateInstanceLog = false;
     } else {
       // callMachineInitialized most likely will only fire once and
       // it's unclear which call machine will handle it.
@@ -5330,6 +5350,7 @@ stopTestPeerToPeerCallQuality() instead`);
         new Sentry.Integrations.GlobalHandlers({
           onunhandledrejection: false,
         }),
+        new Sentry.Integrations.HttpContext(),
       ],
       environment: env,
     });
@@ -5362,10 +5383,12 @@ stopTestPeerToPeerCallQuality() instead`);
         hub.setTag('workerGroup', error.error.details.workerGroup);
       error.error.details?.geoGroup &&
         hub.setTag('geoGroup', error.error.details.geoGroup);
-      error.error.details?.bundleUrl &&
-        hub.setTag('bundleUrl', error.error.details.bundleUrl);
       error.error.details?.on &&
         hub.setTag('connectionAttempt', error.error.details.on);
+      if (error.error.details.bundleUrl) {
+        hub.setTag('bundleUrl', error.error.details.bundleUrl);
+        hub.setTag('bundleError', error.error.details.sourceError.type);
+      }
     }
     hub.setTags({
       callMode: this._callObjectMode

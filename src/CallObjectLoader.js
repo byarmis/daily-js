@@ -73,11 +73,11 @@ export default class CallObjectLoader {
       () => {
         successCallback(false); // false = "this load() wasn't a no-op"
       },
-      (errorMsg, willRetry) => {
+      (error, willRetry) => {
         if (!willRetry) {
           unregisterPendingCallInstance(this._callFrameId);
         }
-        failureCallback(errorMsg, willRetry);
+        failureCallback(error, willRetry);
       }
     );
     this._currentLoad.start();
@@ -130,14 +130,14 @@ class LoadOperation {
 
     // console.log("[LoadOperation] starting...");
 
-    const retryOrFailureCallback = (errorMessage) => {
+    const retryOrFailureCallback = (error) => {
       if (this._currentAttempt.cancelled) {
         // console.log("[LoadOperation] cancelled");
         return;
       }
 
       this._attemptsRemaining--;
-      this._failureCallback(errorMessage, this._attemptsRemaining > 0); // true = "will retry"
+      this._failureCallback(error, this._attemptsRemaining > 0); // true = "will retry"
       if (this._attemptsRemaining <= 0) {
         // Should never be <0, but just being extra careful here
         // console.log("[LoadOperation] ran out of attempts");
@@ -236,7 +236,7 @@ class LoadAttempt {
  */
 class LoadAttempt_ReactNative {
   // Here successCallback takes no parameters, and failureCallback takes a
-  // single error message parameter.
+  // single error parameter that will be filled with a `msg` and `type`.
   constructor(successCallback, failureCallback) {
     this.cancelled = false;
     this.succeeded = false;
@@ -332,9 +332,10 @@ class LoadAttempt_ReactNative {
     // console.log("[LoadAttempt_ReactNative] trying to load from network...");
     this._networkTimeout = setTimeout(() => {
       this._networkTimedOut = true;
-      this._failureCallback(
-        `Timed out (>${LOAD_ATTEMPT_NETWORK_TIMEOUT} ms) when loading call object bundle ${url}`
-      );
+      this._failureCallback({
+        msg: `Timed out (>${LOAD_ATTEMPT_NETWORK_TIMEOUT} ms) when loading call object bundle ${url}`,
+        type: 'timeout',
+      });
     }, LOAD_ATTEMPT_NETWORK_TIMEOUT);
 
     try {
@@ -380,7 +381,10 @@ class LoadAttempt_ReactNative {
         return;
       }
 
-      this._failureCallback(`Failed to load call object bundle ${url}: ${e}`);
+      this._failureCallback({
+        msg: `Failed to load call object bundle ${url}: ${e}`,
+        type: e.message,
+      });
     }
   }
 
@@ -451,9 +455,10 @@ class LoadAttempt_Web {
 
     // Sanity check that we're running in a DOM/web context
     if (typeof document !== 'object') {
-      this._failureCallback(
-        `Call object bundle must be loaded in a DOM/web context`
-      );
+      this._failureCallback({
+        msg: `Call object bundle must be loaded in a DOM/web context`,
+        type: 'missing context',
+      });
       return;
     }
 
@@ -474,9 +479,10 @@ class LoadAttempt_Web {
     this._networkTimeout = setTimeout(() => {
       // console.log('[LoadAttempt_Web] timed out');
       this._stopLoading();
-      this._failureCallback(
-        `Timed out (>${LOAD_ATTEMPT_NETWORK_TIMEOUT} ms) when loading call object bundle ${url}`
-      );
+      this._failureCallback({
+        msg: `Timed out (>${LOAD_ATTEMPT_NETWORK_TIMEOUT} ms) when loading call object bundle ${url}`,
+        type: 'timeout',
+      });
     }, LOAD_ATTEMPT_NETWORK_TIMEOUT);
 
     // Create a script tag to download the call machine bundle
@@ -494,11 +500,11 @@ class LoadAttempt_Web {
 
     // On error, consider this attempt a failure
     script.onerror = (e) => {
-      // console.log('[LoadAttempt_Web] failed');
       this._stopLoading();
-      this._failureCallback(
-        `Failed to load call object bundle ${e.target.src}`
-      );
+      this._failureCallback({
+        msg: `Failed to load call object bundle ${e.target.src}`,
+        type: e.message,
+      });
     };
 
     // Start the download
