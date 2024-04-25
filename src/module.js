@@ -1294,8 +1294,8 @@ export default class DailyIframe extends EventEmitter {
         !(
           nativeUtils.addAudioFocusChangeListener &&
           nativeUtils.removeAudioFocusChangeListener &&
-          nativeUtils.addAppActiveStateChangeListener &&
-          nativeUtils.removeAppActiveStateChangeListener &&
+          nativeUtils.addAppStateChangeListener &&
+          nativeUtils.removeAppStateChangeListener &&
           nativeUtils.addSystemScreenCaptureStopListener &&
           nativeUtils.removeSystemScreenCaptureStopListener
         )
@@ -1310,8 +1310,8 @@ export default class DailyIframe extends EventEmitter {
         this.handleNativeAudioFocusChange
       );
       // app active state event, used for auto-muting cam
-      nativeUtils.addAppActiveStateChangeListener(
-        this.handleNativeAppActiveStateChange
+      nativeUtils.addAppStateChangeListener(
+        this.handleNativeAppStateChange
       );
       // system screen capture stop event, used for syncing system screen share
       // stop (on iOS)
@@ -1360,8 +1360,8 @@ export default class DailyIframe extends EventEmitter {
       nativeUtils.removeAudioFocusChangeListener(
         this.handleNativeAudioFocusChange
       );
-      nativeUtils.removeAppActiveStateChangeListener(
-        this.handleNativeAppActiveStateChange
+      nativeUtils.removeAppStateChangeListener(
+        this.handleNativeAppStateChange
       );
       nativeUtils.removeSystemScreenCaptureStopListener(
         this.handleNativeSystemScreenCaptureStop
@@ -5165,7 +5165,15 @@ stopTestPeerToPeerCallQuality() instead`);
     });
   };
 
-  handleNativeAppActiveStateChange = (isActive) => {
+  handleNativeAppStateChange = async (appState) => {
+    if (appState === 'destroyed') {
+      console.warn(
+          'App has been destroyed before leaving the meeting. Cleaning up all the resources!'
+      );
+      await this.destroy();
+      return;
+    }
+    let isActive = appState === 'active';
     // If automatic video device management is disabled, bail
     if (this.disableReactNativeAutoDeviceManagement('video')) {
       return;
