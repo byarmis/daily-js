@@ -157,7 +157,6 @@ export const DAILY_EVENT_NETWORK_QUALITY_CHANGE = 'network-quality-change';
 export const DAILY_EVENT_NETWORK_CONNECTION = 'network-connection';
 
 export const DAILY_EVENT_CPU_LOAD_CHANGE = 'cpu-load-change';
-export const DAILY_EVENT_FACE_COUNTS_UPDATED = 'face-counts-updated';
 
 export const DAILY_EVENT_FULLSCREEN = 'fullscreen';
 export const DAILY_EVENT_EXIT_FULLSCREEN = 'exited-fullscreen';
@@ -325,7 +324,6 @@ export const DAILY_JS_VIDEO_PROCESSOR_TYPES = {
   NONE: 'none',
   BGBLUR: 'background-blur',
   BGIMAGE: 'background-image',
-  FACE_DETECTION: 'face-detection',
   // CUSTOM: 'custom',
 };
 
