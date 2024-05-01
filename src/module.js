@@ -86,7 +86,6 @@ import {
   DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED,
   DAILY_EVENT_NETWORK_QUALITY_CHANGE,
   DAILY_EVENT_CPU_LOAD_CHANGE,
-  DAILY_EVENT_FACE_COUNTS_UPDATED,
   DAILY_EVENT_ACTIVE_SPEAKER_CHANGE,
   DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE,
   DAILY_EVENT_FULLSCREEN,
@@ -358,7 +357,6 @@ export {
   DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED,
   DAILY_EVENT_NETWORK_QUALITY_CHANGE,
   DAILY_EVENT_CPU_LOAD_CHANGE,
-  DAILY_EVENT_FACE_COUNTS_UPDATED,
   DAILY_EVENT_ACTIVE_SPEAKER_CHANGE,
   DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE,
   DAILY_EVENT_FULLSCREEN,
@@ -4604,17 +4602,6 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_CPU_LOAD_CHANGE:
         {
           if (msg && msg.cpuLoadState) {
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
-          }
-        }
-        break;
-      case DAILY_EVENT_FACE_COUNTS_UPDATED:
-        {
-          if (msg && msg.faceCounts !== undefined) {
             try {
               this.emit(msg.action, msg);
             } catch (e) {
