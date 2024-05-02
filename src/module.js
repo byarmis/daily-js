@@ -235,6 +235,7 @@ import {
   DAILY_EVENT_DIALOUT_WARNING,
   ADAPTIVE_02_LAYERS_VIDEO_SEND_SETTINGS_PRESET_KEY,
   ADAPTIVE_03_LAYERS_VIDEO_SEND_SETTINGS_PRESET_KEY,
+  DAILY_METHOD_UPDATE_SCREENSHARE,
 } from './shared-with-pluot-core/CommonIncludes.js';
 import {
   isReactNative,
@@ -1310,9 +1311,7 @@ export default class DailyIframe extends EventEmitter {
         this.handleNativeAudioFocusChange
       );
       // app active state event, used for auto-muting cam
-      nativeUtils.addAppStateChangeListener(
-        this.handleNativeAppStateChange
-      );
+      nativeUtils.addAppStateChangeListener(this.handleNativeAppStateChange);
       // system screen capture stop event, used for syncing system screen share
       // stop (on iOS)
       nativeUtils.addSystemScreenCaptureStopListener(
@@ -1360,9 +1359,7 @@ export default class DailyIframe extends EventEmitter {
       nativeUtils.removeAudioFocusChangeListener(
         this.handleNativeAudioFocusChange
       );
-      nativeUtils.removeAppStateChangeListener(
-        this.handleNativeAppStateChange
-      );
+      nativeUtils.removeAppStateChangeListener(this.handleNativeAppStateChange);
       nativeUtils.removeSystemScreenCaptureStopListener(
         this.handleNativeSystemScreenCaptureStop
       );
@@ -1649,6 +1646,41 @@ export default class DailyIframe extends EventEmitter {
       action: DAILY_METHOD_LOCAL_AUDIO,
       state: bool,
       options,
+    });
+    return this;
+  }
+
+  localScreenAudio() {
+    if (this._participants.local) {
+      return !['blocked', 'off'].includes(
+        this._participants.local.tracks.screenAudio.state
+      );
+    }
+    return null;
+  }
+
+  localScreenVideo() {
+    if (this._participants.local) {
+      return !['blocked', 'off'].includes(
+        this._participants.local.tracks.screenVideo.state
+      );
+    }
+    return null;
+  }
+
+  updateScreenShare(screenShareOptions) {
+    if (
+      !this._participants?.local?.tracks?.screenVideo?.persistentTrack &&
+      !this._participants?.local?.tracks?.screenAudio?.persistentTrack
+    ) {
+      console.warn(
+        `There is no screen share in progress. You should invoke startScreenShare first!`
+      );
+      return;
+    }
+    this.sendMessageToCallMachine({
+      action: DAILY_METHOD_UPDATE_SCREENSHARE,
+      options: screenShareOptions,
     });
     return this;
   }
@@ -5168,7 +5200,7 @@ stopTestPeerToPeerCallQuality() instead`);
   handleNativeAppStateChange = async (appState) => {
     if (appState === 'destroyed') {
       console.warn(
-          'App has been destroyed before leaving the meeting. Cleaning up all the resources!'
+        'App has been destroyed before leaving the meeting. Cleaning up all the resources!'
       );
       await this.destroy();
       return;

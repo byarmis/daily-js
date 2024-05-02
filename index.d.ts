@@ -1938,6 +1938,15 @@ export type DailyStartDialoutOptions =
   | DailyStartDialoutSipOptions
   | DailyStartDialoutPhoneOptions;
 
+export interface DailyScreenShareUpdateOptions {
+  screenVideo: {
+    enabled: boolean;
+  };
+  screenAudio: {
+    enabled: boolean;
+  };
+}
+
 export interface DailyCall {
   iframe(): HTMLIFrameElement | null;
   join(properties?: DailyCallOptions): Promise<DailyParticipantsObject | void>;
@@ -1978,6 +1987,9 @@ export interface DailyCall {
     options?: { forceDiscardTrack: true }
   ): DailyCall;
   setLocalVideo(enabled: boolean): DailyCall;
+  localScreenAudio(): boolean;
+  localScreenVideo(): boolean;
+  updateScreenShare(options?: DailyScreenShareUpdateOptions): void;
   getReceiveSettings(
     id: string,
     options?: { showInheritedValues: boolean }

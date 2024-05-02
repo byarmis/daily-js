@@ -223,6 +223,7 @@ export const DAILY_METHOD_LOCAL_AUDIO = 'local-audio';
 export const DAILY_METHOD_LOCAL_VIDEO = 'local-video';
 export const DAILY_METHOD_START_SCREENSHARE = 'local-screen-start';
 export const DAILY_METHOD_STOP_SCREENSHARE = 'local-screen-stop';
+export const DAILY_METHOD_UPDATE_SCREENSHARE = 'local-screen-update';
 export const DAILY_METHOD_START_RECORDING = 'local-recording-start';
 export const DAILY_METHOD_UPDATE_RECORDING = 'daily-method-update-recording';
 export const DAILY_METHOD_STOP_RECORDING = 'local-recording-stop';
