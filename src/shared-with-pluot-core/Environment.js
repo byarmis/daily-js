@@ -112,7 +112,7 @@ function _determineWebGLAvailability() {
     return false;
   }
 }
-export const _isWebGLAvailable = _determineWebGLAvailability();
+const _isWebGLAvailable = _determineWebGLAvailability();
 export function isWebGLAvailable() {
   return _isWebGLAvailable;
 }
