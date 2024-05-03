@@ -1674,7 +1674,7 @@ export default class DailyIframe extends EventEmitter {
       !this._participants?.local?.tracks?.screenAudio?.persistentTrack
     ) {
       console.warn(
-        `There is no screen share in progress. You should invoke startScreenShare first!`
+        `There is no screen share in progress. Try calling startScreenShare first.`
       );
       return;
     }
