@@ -101,8 +101,26 @@ export function isFullscreenSupported() {
   return !!iframe.requestFullscreen || !!iframe.webkitRequestFullscreen;
 }
 
+function _determineWebGLAvailability() {
+  try {
+    let canvas = document.createElement('canvas');
+    let gl = canvas.getContext('webgl');
+    let isWebglAvailable = gl != null;
+    canvas.remove();
+    return isWebglAvailable;
+  } catch (err) {
+    return false;
+  }
+}
+const _isWebGLAvailable = _determineWebGLAvailability();
+export function isWebGLAvailable() {
+  return _isWebGLAvailable;
+}
+
 export function isVideoProcessingSupported(usingLegacyProvider = false) {
   if (isReactNative()) return false;
+
+  if (!isWebGLAvailable()) return false;
 
   if (usingLegacyProvider) {
     return isVideoProcessingSupportedInBrowser_MediaPipe();
