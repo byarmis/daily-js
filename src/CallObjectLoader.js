@@ -2,16 +2,7 @@ import { isReactNative } from './shared-with-pluot-core/Environment';
 import { callObjectBundleUrl, randomStringId } from './utils';
 
 function registerPendingCallInstance(callFrameId) {
-  // Add a global callFrameId so we can have both iframes and one
-  // call object mode calls live at the same time
-  if (!window._daily) {
-    window._daily = { pendings: [], instances: {} };
-  } else if (!window._daily.pendings) {
-    window._daily.pendings = [];
-  }
   window._daily.pendings.push(callFrameId);
-  window._daily.instances[callFrameId] =
-    window._daily.instances[callFrameId] || {};
 }
 
 function unregisterPendingCallInstance(callFrameId) {

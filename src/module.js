@@ -579,12 +579,18 @@ const FRAME_PROPS = {
   bodyClass: true,
   videoSource: {
     validate: (s, callObject) => {
+      if (s instanceof MediaStreamTrack) {
+        callObject._sharedTracks.videoDeviceId = s;
+      }
       callObject._preloadCache.videoDeviceId = s;
       return true;
     },
   },
   audioSource: {
     validate: (s, callObject) => {
+      if (s instanceof MediaStreamTrack) {
+        callObject._sharedTracks.audioDeviceId = s;
+      }
       callObject._preloadCache.audioDeviceId = s;
       return true;
     },
@@ -1129,13 +1135,28 @@ export default class DailyIframe extends EventEmitter {
       _setCallInstance(this);
     }
 
+    // initialize globals if this is the first call instance ever on this window
+    if (!window._daily) {
+      window._daily = { pendings: [], instances: {} };
+    }
+
+    // This ID is used internally to coordinate communication between this
+    // Daily instance and the call machine. It currently seeps into many of
+    // the externally facing daily-js events but should have no external use.
+    // TODO: Remove this id from external daily-js events and rename to
+    //       _callClientId
+    this._callFrameId = randomStringId();
+    window._daily.instances[this._callFrameId] = {};
+
+    // This is how we share tracks across the "wire" to the call bundle since
+    // tracks can't be JSONified for postMessage.
+    this._sharedTracks = {};
+    window._daily.instances[this._callFrameId].tracks = this._sharedTracks;
+
     properties.dailyJsVersion = DailyIframe.version();
     this._iframe = iframeish;
     this._callObjectMode = properties.layout === 'none' && !this._iframe;
     this._preloadCache = initializePreloadCache();
-    if (this._callObjectMode) {
-      window._dailyPreloadCache = this._preloadCache;
-    }
 
     if (properties.showLocalVideo !== undefined) {
       if (this._callObjectMode) {
@@ -1217,12 +1238,7 @@ export default class DailyIframe extends EventEmitter {
     if (properties.inputSettings && properties.inputSettings.video) {
       this._preloadCache.inputSettings.video = properties.inputSettings.video;
     }
-    // This ID is used internally to coordinate communication between this
-    // Daily instance and the call machine. It currently seeps into many of
-    // the externally facing daily-js events but should have no external use.
-    // TODO: Remove this id from external daily-js events and rename to
-    //       _callClientId
-    this._callFrameId = randomStringId();
+
     this._callObjectLoader = this._callObjectMode
       ? new CallObjectLoader(this._callFrameId)
       : null;
@@ -2294,7 +2310,7 @@ export default class DailyIframe extends EventEmitter {
           resolve(msg.mediaTag);
         }
       };
-      window._dailyPreloadCache.customTrack = properties.track;
+      this._sharedTracks.customTrack = properties.track;
       properties.track = DAILY_CUSTOM_TRACK;
       this.sendMessageToCallMachine(
         {
@@ -2401,9 +2417,11 @@ export default class DailyIframe extends EventEmitter {
     // cache these for use in subsequent calls
     if (audioDeviceId) {
       this._preloadCache.audioDeviceId = audioDeviceId;
+      this._sharedTracks.audioDeviceId = audioDeviceId;
     }
     if (videoDeviceId) {
       this._preloadCache.videoDeviceId = videoDeviceId;
+      this._sharedTracks.videoDeviceId = videoDeviceId;
     }
 
     // if we're in callObject mode and not loaded yet, don't do anything
@@ -2888,7 +2906,7 @@ export default class DailyIframe extends EventEmitter {
       );
     }
     if (captureOptions.mediaStream) {
-      this._preloadCache.screenMediaStream = captureOptions.mediaStream;
+      this._sharedTracks.screenMediaStream = captureOptions.mediaStream;
       captureOptions.mediaStream = DAILY_CUSTOM_TRACK;
     }
     if (isReactNativeIOS()) {
@@ -3479,7 +3497,7 @@ export default class DailyIframe extends EventEmitter {
     _maybeUpdateTestCallInProgressFlag(true);
 
     const { videoTrack, ...callArgs } = args;
-    this._preloadCache.videoTrackForConnectionQualityTest = videoTrack;
+    this._sharedTracks.videoTrackForConnectionQualityTest = videoTrack;
 
     if (this.needsLoad()) {
       try {
@@ -3581,7 +3599,7 @@ testPeerToPeerCallQuality() instead`);
     if (!this._validateVideoTrackForNetworkTests(videoTrack)) {
       throw new Error('Video track error');
     } else {
-      this._preloadCache.videoTrackForConnectionQualityTest = videoTrack;
+      this._sharedTracks.videoTrackForConnectionQualityTest = videoTrack;
     }
 
     return new Promise((resolve, reject) => {
@@ -3630,7 +3648,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (!this._validateVideoTrackForNetworkTests(videoTrack)) {
       throw new Error('Video track error');
     } else {
-      this._preloadCache.videoTrackForNetworkConnectivityTest = videoTrack;
+      this._sharedTracks.videoTrackForNetworkConnectivityTest = videoTrack;
     }
 
     return new Promise((resolve, reject) => {
