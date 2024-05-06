@@ -5425,7 +5425,7 @@ stopTestPeerToPeerCallQuality() instead`);
         hub.setTag('geoGroup', error.error.details.geoGroup);
       error.error.details?.on &&
         hub.setTag('connectionAttempt', error.error.details.on);
-      if (error.error.details.bundleUrl) {
+      if (error.error.details?.bundleUrl) {
         hub.setTag('bundleUrl', error.error.details.bundleUrl);
         hub.setTag('bundleError', error.error.details.sourceError.type);
       }
