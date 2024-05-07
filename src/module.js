@@ -500,8 +500,6 @@ const FRAME_PROPS = {
         if (!window._dailyConfig) {
           window._dailyConfig = {};
         }
-        window._dailyConfig.experimentalGetUserMediaConstraintsModify =
-          config.experimentalGetUserMediaConstraintsModify;
         window._dailyConfig.userMediaVideoConstraints =
           config.userMediaVideoConstraints;
         window._dailyConfig.userMediaAudioConstraints =
@@ -2214,8 +2212,7 @@ export default class DailyIframe extends EventEmitter {
         return Promise.reject(e);
       }
     } else {
-      // even if is already loaded, needs to validate the properties, so the dailyConfig properties can be inserted inside window._dailyConfig
-      // Validate that any provided url or token doesn't conflict with url or
+      // Ensure that any provided url or token doesn't conflict with url or
       // token already used to preAuth()
       if (this._didPreAuth) {
         if (properties.url && properties.url !== this.properties.url) {
@@ -2231,6 +2228,9 @@ export default class DailyIframe extends EventEmitter {
           return Promise.reject();
         }
       }
+      // validate the properties, and ensure that dailyConfig properties on the
+      // window are updated. Note: If the bundle hasn't been loaded, this occurs
+      // as part of the load() process
       this.validateProperties(properties);
       this.properties = { ...this.properties, ...properties };
     }
