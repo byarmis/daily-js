@@ -2239,8 +2239,14 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_START_CAMERA,
-          properties: makeSafeForPostMessage(this.properties),
-          preloadCache: makeSafeForPostMessage(this._preloadCache),
+          properties: makeSafeForPostMessage(
+            this.properties,
+            this._callFrameId
+          ),
+          preloadCache: makeSafeForPostMessage(
+            this._preloadCache,
+            this._callFrameId
+          ),
         },
         k
       );
@@ -2619,8 +2625,14 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_PREAUTH,
-          properties: makeSafeForPostMessage(this.properties),
-          preloadCache: makeSafeForPostMessage(this._preloadCache),
+          properties: makeSafeForPostMessage(
+            this.properties,
+            this._callFrameId
+          ),
+          preloadCache: makeSafeForPostMessage(
+            this._preloadCache,
+            this._callFrameId
+          ),
         },
         k
       );
@@ -2826,8 +2838,11 @@ export default class DailyIframe extends EventEmitter {
 
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_JOIN,
-      properties: makeSafeForPostMessage(this.properties),
-      preloadCache: makeSafeForPostMessage(this._preloadCache),
+      properties: makeSafeForPostMessage(this.properties, this._callFrameId),
+      preloadCache: makeSafeForPostMessage(
+        this._preloadCache,
+        this._callFrameId
+      ),
     });
     return new Promise((resolve, reject) => {
       this._joinedCallback = (participants, error) => {
@@ -5486,7 +5501,7 @@ function resetPreloadCache(c) {
   // cache that should not persist
 }
 
-function makeSafeForPostMessage(props) {
+function makeSafeForPostMessage(props, callFrameId) {
   const safe = {};
   for (let p in props) {
     if (props[p] instanceof MediaStreamTrack) {
@@ -5497,16 +5512,17 @@ function makeSafeForPostMessage(props) {
       safe[p] = DAILY_CUSTOM_TRACK;
     } else if (p === 'dailyConfig') {
       if (props[p].modifyLocalSdpHook) {
-        if (window._dailyConfig) {
-          window._dailyConfig.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
-        }
+        let customCallbacks =
+          window._daily.instances[callFrameId].customCallbacks || {};
+        customCallbacks.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
+        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
         delete props[p].modifyLocalSdpHook;
       }
       if (props[p].modifyRemoteSdpHook) {
-        if (window._dailyConfig) {
-          window._dailyConfig.modifyRemoteSdpHook =
-            props[p].modifyRemoteSdpHook;
-        }
+        let customCallbacks =
+          window._daily.instances[callFrameId].customCallbacks || {};
+        customCallbacks.modifyRemoteSdpHook = props[p].modifyRemoteSdpHook;
+        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
         delete props[p].modifyRemoteSdpHook;
       }
       safe[p] = props[p];
