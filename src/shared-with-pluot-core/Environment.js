@@ -104,7 +104,7 @@ export function isFullscreenSupported() {
 function _determineWebGLAvailability() {
   try {
     let canvas = document.createElement('canvas');
-    let gl = canvas.getContext('webgl');
+    let gl = canvas.getContext('webgl2');
     let isWebglAvailable = gl != null;
     canvas.remove();
     return isWebglAvailable;
