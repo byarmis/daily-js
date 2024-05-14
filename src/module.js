@@ -497,19 +497,6 @@ const FRAME_PROPS = {
     validate: (config, callObject) => {
       try {
         callObject.validateDailyConfig(config);
-        if (!window._dailyConfig) {
-          window._dailyConfig = {};
-        }
-        window._dailyConfig.experimentalGetUserMediaConstraintsModify =
-          config.experimentalGetUserMediaConstraintsModify;
-        window._dailyConfig.userMediaVideoConstraints =
-          config.userMediaVideoConstraints;
-        window._dailyConfig.userMediaAudioConstraints =
-          config.userMediaAudioConstraints;
-        window._dailyConfig.callObjectBundleUrlOverride =
-          config.callObjectBundleUrlOverride;
-        window._dailyConfig.proxyUrl = config.proxyUrl;
-        window._dailyConfig.iceConfig = config.iceConfig;
         return true;
       } catch (e) {
         console.error('Failed to validate dailyConfig', e);
@@ -739,7 +726,10 @@ const FRAME_PROPS = {
         if (!callObject._preloadCache.inputSettings) {
           callObject._preloadCache.inputSettings = {};
         }
-        stripInputSettingsForUnsupportedPlatforms(settings);
+        stripInputSettingsForUnsupportedPlatforms(
+          settings,
+          callObject.properties?.dailyConfig
+        );
         if (settings.audio) {
           callObject._preloadCache.inputSettings.audio = settings.audio;
         }
@@ -1897,7 +1887,10 @@ export default class DailyIframe extends EventEmitter {
       if (!this._preloadCache.inputSettings) {
         this._preloadCache.inputSettings = {};
       }
-      stripInputSettingsForUnsupportedPlatforms(inputSettings);
+      stripInputSettingsForUnsupportedPlatforms(
+        inputSettings,
+        this.properties.dailyConfig
+      );
       if (inputSettings.audio) {
         this._preloadCache.inputSettings.audio = inputSettings.audio;
       }
@@ -2214,8 +2207,7 @@ export default class DailyIframe extends EventEmitter {
         return Promise.reject(e);
       }
     } else {
-      // even if is already loaded, needs to validate the properties, so the dailyConfig properties can be inserted inside window._dailyConfig
-      // Validate that any provided url or token doesn't conflict with url or
+      // Ensure that any provided url or token doesn't conflict with url or
       // token already used to preAuth()
       if (this._didPreAuth) {
         if (properties.url && properties.url !== this.properties.url) {
@@ -2231,6 +2223,9 @@ export default class DailyIframe extends EventEmitter {
           return Promise.reject();
         }
       }
+      // validate the properties, and ensure that dailyConfig properties on the
+      // window are updated. Note: If the bundle hasn't been loaded, this occurs
+      // as part of the load() process
       this.validateProperties(properties);
       this.properties = { ...this.properties, ...properties };
     }
@@ -2244,8 +2239,14 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_START_CAMERA,
-          properties: makeSafeForPostMessage(this.properties),
-          preloadCache: makeSafeForPostMessage(this._preloadCache),
+          properties: makeSafeForPostMessage(
+            this.properties,
+            this._callFrameId
+          ),
+          preloadCache: makeSafeForPostMessage(
+            this._preloadCache,
+            this._callFrameId
+          ),
         },
         k
       );
@@ -2624,8 +2625,14 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_PREAUTH,
-          properties: makeSafeForPostMessage(this.properties),
-          preloadCache: makeSafeForPostMessage(this._preloadCache),
+          properties: makeSafeForPostMessage(
+            this.properties,
+            this._callFrameId
+          ),
+          preloadCache: makeSafeForPostMessage(
+            this._preloadCache,
+            this._callFrameId
+          ),
         },
         k
       );
@@ -2671,7 +2678,7 @@ export default class DailyIframe extends EventEmitter {
         this._callObjectLoader.cancel();
         const startTime = Date.now();
         this._callObjectLoader.load(
-          !!this.properties.dailyConfig?.avoidEval,
+          this.properties.dailyConfig,
           (wasNoOp) => {
             this._bundleLoadTime = wasNoOp ? 'no-op' : Date.now() - startTime;
             this._updateCallState(DAILY_STATE_LOADED);
@@ -2698,7 +2705,7 @@ export default class DailyIframe extends EventEmitter {
                   details: {
                     on: 'load',
                     sourceError: error,
-                    bundleUrl: callObjectBundleUrl(),
+                    bundleUrl: callObjectBundleUrl(this.properties.dailyConfig),
                   },
                 },
               };
@@ -2711,7 +2718,10 @@ export default class DailyIframe extends EventEmitter {
       });
     } else {
       // iframe
-      this._iframe.src = maybeProxyHttpsUrl(this.assembleMeetingUrl());
+      this._iframe.src = maybeProxyHttpsUrl(
+        this.assembleMeetingUrl(),
+        this.properties.dailyConfig
+      );
       return new Promise((resolve, reject) => {
         this._loadedCallback = (error) => {
           if (this._callState === DAILY_STATE_ERROR) {
@@ -2828,8 +2838,11 @@ export default class DailyIframe extends EventEmitter {
 
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_JOIN,
-      properties: makeSafeForPostMessage(this.properties),
-      preloadCache: makeSafeForPostMessage(this._preloadCache),
+      properties: makeSafeForPostMessage(this.properties, this._callFrameId),
+      preloadCache: makeSafeForPostMessage(
+        this._preloadCache,
+        this._callFrameId
+      ),
     });
     return new Promise((resolve, reject) => {
       this._joinedCallback = (participants, error) => {
@@ -4336,8 +4349,8 @@ stopTestPeerToPeerCallQuality() instead`);
         ...this.properties,
         emb: this._callFrameId,
         embHref: encodeURIComponent(window.location.href),
-        proxy: window._dailyConfig?.proxyUrl
-          ? encodeURIComponent(window._dailyConfig?.proxyUrl)
+        proxy: this.properties.dailyConfig?.proxyUrl
+          ? encodeURIComponent(this.properties.dailyConfig?.proxyUrl)
           : undefined,
       },
       firstSep = props.url.match(/\?/) ? '&' : '?',
@@ -4432,7 +4445,7 @@ stopTestPeerToPeerCallQuality() instead`);
             event: 'bundle load',
             time: this._bundleLoadTime === 'no-op' ? 0 : this._bundleLoadTime,
             preLoaded: this._bundleLoadTime === 'no-op',
-            url: callObjectBundleUrl(),
+            url: callObjectBundleUrl(this.properties.dailyConfig),
           },
         };
         this.sendMessageToCallMachine(logMsg);
@@ -5488,7 +5501,7 @@ function resetPreloadCache(c) {
   // cache that should not persist
 }
 
-function makeSafeForPostMessage(props) {
+function makeSafeForPostMessage(props, callFrameId) {
   const safe = {};
   for (let p in props) {
     if (props[p] instanceof MediaStreamTrack) {
@@ -5499,16 +5512,17 @@ function makeSafeForPostMessage(props) {
       safe[p] = DAILY_CUSTOM_TRACK;
     } else if (p === 'dailyConfig') {
       if (props[p].modifyLocalSdpHook) {
-        if (window._dailyConfig) {
-          window._dailyConfig.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
-        }
+        let customCallbacks =
+          window._daily.instances[callFrameId].customCallbacks || {};
+        customCallbacks.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
+        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
         delete props[p].modifyLocalSdpHook;
       }
       if (props[p].modifyRemoteSdpHook) {
-        if (window._dailyConfig) {
-          window._dailyConfig.modifyRemoteSdpHook =
-            props[p].modifyRemoteSdpHook;
-        }
+        let customCallbacks =
+          window._daily.instances[callFrameId].customCallbacks || {};
+        customCallbacks.modifyRemoteSdpHook = props[p].modifyRemoteSdpHook;
+        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
         delete props[p].modifyRemoteSdpHook;
       }
       safe[p] = props[p];
@@ -5762,13 +5776,11 @@ function validateInputSettings(settings) {
 // Assumes `settings` is otherwise valid (passes `validateInputSettings()`).
 // Note: currently `processor` is required for `settings` to be valid, so we can
 // strip out the entire `video` or `audio` if processing isn't supported.
-function stripInputSettingsForUnsupportedPlatforms(settings) {
+function stripInputSettingsForUnsupportedPlatforms(settings, dailyConfig) {
   const unsupportedProcessors = [];
   if (
     settings.video &&
-    !isVideoProcessingSupported(
-      window._dailyConfig?.useLegacyVideoProcessor ?? false
-    )
+    !isVideoProcessingSupported(dailyConfig?.useLegacyVideoProcessor ?? false)
   ) {
     delete settings.video;
     unsupportedProcessors.push('video');

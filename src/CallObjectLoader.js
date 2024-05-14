@@ -38,15 +38,19 @@ export default class CallObjectLoader {
    * Since the call object bundle sets up global state in the same scope as the
    * app code consuming it, it only needs to be loaded and executed once ever.
    *
-   * @param avoidEval Whether to use the new eval-less loading mechanism on web
-   *  (LoadAttempt_Web) instead of the legacy loading mechanism
-   *  (LoadAttempt_ReactNative).
+   * @param dailyConfig An object containing overrides for various load operation
+   *  defaults (IRL the specific fields the loader types are interested in are):
+   *    - avoidEval: Whether to use the new eval-less loading mechanism on web
+   *      (LoadAttempt_Web) instead of the legacy loading mechanism
+   *      (LoadAttempt_ReactNative).
+   *    - proxyUrl: Url provided to proxy requests through
+   *    - callObjectBundleUrlOverride: overrides where to pull the bundle from.
    * @param successCallback Callback function that takes a wasNoOp argument
    *  (true if call object script was ever loaded once before).
    * @param failureCallback Callback function that takes an error message and a
    *   boolean indicating whether an automatic retry is slated to occur.
    */
-  load(avoidEval, successCallback, failureCallback) {
+  load(dailyConfig = {}, successCallback, failureCallback) {
     if (this.loaded) {
       window._daily.instances[this._callFrameId].callMachine.reset();
       successCallback(true); // true = "this load() was a no-op"
@@ -60,7 +64,7 @@ export default class CallObjectLoader {
 
     // Start a new load
     this._currentLoad = new LoadOperation(
-      avoidEval,
+      dailyConfig,
       () => {
         successCallback(false); // false = "this load() wasn't a no-op"
       },
@@ -101,13 +105,14 @@ const LOAD_ATTEMPT_DELAY = 3 * 1000;
  * attempt to the LoadAttempt class.
  */
 class LoadOperation {
-  // Here failureCallback takes the same parameters as CallObjectLoader.load,
+  // Here dailyConfig is the same as the one passed to CallObjectLoader.load,
+  // failureCallback takes the same parameters as CallObjectLoader.load,
   // and successCallback takes no parameters.
-  constructor(avoidEval, successCallback, failureCallback) {
+  constructor(dailyConfig = {}, successCallback, failureCallback) {
     this._attemptsRemaining = LOAD_ATTEMPTS;
     this._currentAttempt = null;
 
-    this.avoidEval = avoidEval;
+    this._dailyConfig = dailyConfig;
 
     this._successCallback = successCallback;
     this._failureCallback = failureCallback;
@@ -141,7 +146,7 @@ class LoadOperation {
           return;
         }
         this._currentAttempt = new LoadAttempt(
-          this.avoidEval,
+          this._dailyConfig,
           this._successCallback,
           retryOrFailureCallback
         );
@@ -150,7 +155,7 @@ class LoadOperation {
     };
 
     this._currentAttempt = new LoadAttempt(
-      this.avoidEval,
+      this._dailyConfig,
       this._successCallback,
       retryOrFailureCallback
     );
@@ -196,11 +201,15 @@ const LOAD_ATTEMPT_NETWORK_TIMEOUT = 20 * 1000;
  * in React Native and also no CSP consideration to contend with.
  */
 class LoadAttempt {
-  constructor(avoidEval, successCallback, failureCallback) {
+  constructor(dailyConfig, successCallback, failureCallback) {
     this._loadAttemptImpl =
-      isReactNative() || !avoidEval
-        ? new LoadAttempt_ReactNative(successCallback, failureCallback)
-        : new LoadAttempt_Web(successCallback, failureCallback);
+      isReactNative() || !dailyConfig.avoidEval
+        ? new LoadAttempt_ReactNative(
+            dailyConfig,
+            successCallback,
+            failureCallback
+          )
+        : new LoadAttempt_Web(dailyConfig, successCallback, failureCallback);
   }
 
   async start() {
@@ -228,7 +237,7 @@ class LoadAttempt {
 class LoadAttempt_ReactNative {
   // Here successCallback takes no parameters, and failureCallback takes a
   // single error parameter that will be filled with a `msg` and `type`.
-  constructor(successCallback, failureCallback) {
+  constructor(dailyConfig, successCallback, failureCallback) {
     this.cancelled = false;
     this.succeeded = false;
 
@@ -240,13 +249,14 @@ class LoadAttempt_ReactNative {
       iOSCallObjectBundleCache;
     this._refetchHeaders = null;
 
+    this._dailyConfig = dailyConfig;
     this._successCallback = successCallback;
     this._failureCallback = failureCallback;
   }
 
   async start() {
     // console.log("[LoadAttempt_ReactNative] starting...");
-    const url = callObjectBundleUrl();
+    const url = callObjectBundleUrl(this._dailyConfig);
     const loadedFromIOSCache = await this._tryLoadFromIOSCache(url);
     !loadedFromIOSCache && this._loadFromNetwork(url);
   }
@@ -423,10 +433,11 @@ class LoadAttempt_ReactNative {
  * of implementing this synchronization.
  */
 class LoadAttempt_Web {
-  constructor(successCallback, failureCallback) {
+  constructor(dailyConfig, successCallback, failureCallback) {
     this.cancelled = false;
     this.succeeded = false;
 
+    this._dailyConfig = dailyConfig;
     this._successCallback = successCallback;
     this._failureCallback = failureCallback;
 
@@ -442,7 +453,7 @@ class LoadAttempt_Web {
     }
 
     // Get call machine bundle URL
-    const url = callObjectBundleUrl();
+    const url = callObjectBundleUrl(this._dailyConfig);
 
     // Sanity check that we're running in a DOM/web context
     if (typeof document !== 'object') {
