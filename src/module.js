@@ -1243,6 +1243,7 @@ export default class DailyIframe extends EventEmitter {
     );
     this._nativeInCallAudioMode = NATIVE_AUDIO_MODE_VIDEO_CALL;
     this._participants = {};
+    this._isScreenSharing = false;
     this._participantCounts = EMPTY_PARTICIPANT_COUNTS;
     this._rmpPlayerState = {};
     this._waitingParticipants = {};
@@ -1675,10 +1676,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   updateScreenShare(screenShareOptions) {
-    if (
-      !this._participants?.local?.tracks?.screenVideo?.persistentTrack &&
-      !this._participants?.local?.tracks?.screenAudio?.persistentTrack
-    ) {
+    if (!this._isScreenSharing) {
       console.warn(
         `There is no screen share in progress. Try calling startScreenShare first.`
       );
@@ -4866,6 +4864,15 @@ stopTestPeerToPeerCallQuality() instead`);
           this.emitDailyJSEvent(msg);
         }
         break;
+      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STARTED:
+        this._isScreenSharing = true;
+        this.emitDailyJSEvent(msg);
+        break;
+      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STOPPED:
+      case DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED:
+        this._isScreenSharing = false;
+        this.emitDailyJSEvent(msg);
+        break;
       case DAILY_EVENT_RECORDING_STARTED:
       case DAILY_EVENT_RECORDING_STOPPED:
       case DAILY_EVENT_RECORDING_STATS:
@@ -4878,9 +4885,6 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_CAMERA_ERROR:
       case DAILY_EVENT_APP_MSG:
       case DAILY_EVENT_TRANSCRIPTION_MSG:
-      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STARTED:
-      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STOPPED:
-      case DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED:
       case DAILY_EVENT_NETWORK_CONNECTION:
       case DAILY_EVENT_RECORDING_DATA:
       case DAILY_EVENT_LIVE_STREAMING_STARTED:
@@ -5130,6 +5134,7 @@ stopTestPeerToPeerCallQuality() instead`);
       DEFAULT_SESSION_STATE,
       this._callObjectMode
     );
+    this._isScreenSharing = false;
     this._receiveSettings = {};
     this._inputSettings = undefined;
     this._sendSettings = {};
