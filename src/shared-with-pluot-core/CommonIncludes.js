@@ -363,6 +363,7 @@ export const UPDATE_LIVE_STREAMING_ENDPOINTS_OP = {
 export const DAILY_METHOD_START_DIALOUT = 'dialout-start';
 export const DAILY_METHOD_SEND_DTMF = 'send-dtmf';
 export const DAILY_METHOD_STOP_DIALOUT = 'dialout-stop';
+export const DAILY_EVENT_DIALIN_READY = 'dialin-ready';
 export const DAILY_EVENT_DIALIN_CONNECTED = 'dialin-connected';
 export const DAILY_EVENT_DIALIN_ERROR = 'dialin-error';
 export const DAILY_EVENT_DIALIN_STOPPED = 'dialin-stopped';
