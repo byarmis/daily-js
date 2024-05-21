@@ -2366,12 +2366,15 @@ export default class DailyIframe extends EventEmitter {
     return { deviceId: currentAudioDevice };
   }
 
-  cycleCamera() {
+  cycleCamera(properties = {}) {
     return new Promise((resolve) => {
       let k = (msg) => {
         resolve({ device: msg.device });
       };
-      this.sendMessageToCallMachine({ action: DAILY_METHOD_CYCLE_CAMERA }, k);
+      this.sendMessageToCallMachine(
+        { action: DAILY_METHOD_CYCLE_CAMERA, properties },
+        k
+      );
     });
   }
 
@@ -3902,7 +3905,23 @@ stopTestPeerToPeerCallQuality() instead`);
         raw = raw.filter((d) => d.kind !== 'audiooutput');
       }
 
-      return { devices: raw.map((d) => JSON.parse(JSON.stringify(d))) };
+      return {
+        devices: raw.map((d) => {
+          const jsonDevice = JSON.parse(JSON.stringify(d));
+          // On RN we already return this "facing" field by default, we are just matching the behavior here
+          // the possible values are "user" or "environment"
+          if (
+            !isReactNative() &&
+            d.kind === 'videoinput' &&
+            d.getCapabilities
+          ) {
+            const cap = d.getCapabilities();
+            jsonDevice.facing =
+              cap?.facingMode?.length >= 1 ? cap.facingMode[0] : undefined;
+          }
+          return jsonDevice;
+        }),
+      };
     }
 
     return new Promise((resolve) => {
