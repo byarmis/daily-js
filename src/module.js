@@ -225,6 +225,7 @@ import {
   DAILY_METHOD_START_DIALOUT,
   DAILY_METHOD_SEND_DTMF,
   DAILY_METHOD_STOP_DIALOUT,
+  DAILY_EVENT_DIALIN_READY,
   DAILY_EVENT_DIALIN_CONNECTED,
   DAILY_EVENT_DIALIN_ERROR,
   DAILY_EVENT_DIALIN_STOPPED,
@@ -497,19 +498,6 @@ const FRAME_PROPS = {
     validate: (config, callObject) => {
       try {
         callObject.validateDailyConfig(config);
-        if (!window._dailyConfig) {
-          window._dailyConfig = {};
-        }
-        window._dailyConfig.experimentalGetUserMediaConstraintsModify =
-          config.experimentalGetUserMediaConstraintsModify;
-        window._dailyConfig.userMediaVideoConstraints =
-          config.userMediaVideoConstraints;
-        window._dailyConfig.userMediaAudioConstraints =
-          config.userMediaAudioConstraints;
-        window._dailyConfig.callObjectBundleUrlOverride =
-          config.callObjectBundleUrlOverride;
-        window._dailyConfig.proxyUrl = config.proxyUrl;
-        window._dailyConfig.iceConfig = config.iceConfig;
         return true;
       } catch (e) {
         console.error('Failed to validate dailyConfig', e);
@@ -579,12 +567,18 @@ const FRAME_PROPS = {
   bodyClass: true,
   videoSource: {
     validate: (s, callObject) => {
+      if (s instanceof MediaStreamTrack) {
+        callObject._sharedTracks.videoDeviceId = s;
+      }
       callObject._preloadCache.videoDeviceId = s;
       return true;
     },
   },
   audioSource: {
     validate: (s, callObject) => {
+      if (s instanceof MediaStreamTrack) {
+        callObject._sharedTracks.audioDeviceId = s;
+      }
       callObject._preloadCache.audioDeviceId = s;
       return true;
     },
@@ -733,7 +727,10 @@ const FRAME_PROPS = {
         if (!callObject._preloadCache.inputSettings) {
           callObject._preloadCache.inputSettings = {};
         }
-        stripInputSettingsForUnsupportedPlatforms(settings);
+        stripInputSettingsForUnsupportedPlatforms(
+          settings,
+          callObject.properties?.dailyConfig
+        );
         if (settings.audio) {
           callObject._preloadCache.inputSettings.audio = settings.audio;
         }
@@ -1129,13 +1126,28 @@ export default class DailyIframe extends EventEmitter {
       _setCallInstance(this);
     }
 
+    // initialize globals if this is the first call instance ever on this window
+    if (!window._daily) {
+      window._daily = { pendings: [], instances: {} };
+    }
+
+    // This ID is used internally to coordinate communication between this
+    // Daily instance and the call machine. It currently seeps into many of
+    // the externally facing daily-js events but should have no external use.
+    // TODO: Remove this id from external daily-js events and rename to
+    //       _callClientId
+    this._callFrameId = randomStringId();
+    window._daily.instances[this._callFrameId] = {};
+
+    // This is how we share tracks across the "wire" to the call bundle since
+    // tracks can't be JSONified for postMessage.
+    this._sharedTracks = {};
+    window._daily.instances[this._callFrameId].tracks = this._sharedTracks;
+
     properties.dailyJsVersion = DailyIframe.version();
     this._iframe = iframeish;
     this._callObjectMode = properties.layout === 'none' && !this._iframe;
     this._preloadCache = initializePreloadCache();
-    if (this._callObjectMode) {
-      window._dailyPreloadCache = this._preloadCache;
-    }
 
     if (properties.showLocalVideo !== undefined) {
       if (this._callObjectMode) {
@@ -1217,12 +1229,7 @@ export default class DailyIframe extends EventEmitter {
     if (properties.inputSettings && properties.inputSettings.video) {
       this._preloadCache.inputSettings.video = properties.inputSettings.video;
     }
-    // This ID is used internally to coordinate communication between this
-    // Daily instance and the call machine. It currently seeps into many of
-    // the externally facing daily-js events but should have no external use.
-    // TODO: Remove this id from external daily-js events and rename to
-    //       _callClientId
-    this._callFrameId = randomStringId();
+
     this._callObjectLoader = this._callObjectMode
       ? new CallObjectLoader(this._callFrameId)
       : null;
@@ -1237,6 +1244,7 @@ export default class DailyIframe extends EventEmitter {
     );
     this._nativeInCallAudioMode = NATIVE_AUDIO_MODE_VIDEO_CALL;
     this._participants = {};
+    this._isScreenSharing = false;
     this._participantCounts = EMPTY_PARTICIPANT_COUNTS;
     this._rmpPlayerState = {};
     this._waitingParticipants = {};
@@ -1669,10 +1677,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   updateScreenShare(screenShareOptions) {
-    if (
-      !this._participants?.local?.tracks?.screenVideo?.persistentTrack &&
-      !this._participants?.local?.tracks?.screenAudio?.persistentTrack
-    ) {
+    if (!this._isScreenSharing) {
       console.warn(
         `There is no screen share in progress. Try calling startScreenShare first.`
       );
@@ -1881,7 +1886,10 @@ export default class DailyIframe extends EventEmitter {
       if (!this._preloadCache.inputSettings) {
         this._preloadCache.inputSettings = {};
       }
-      stripInputSettingsForUnsupportedPlatforms(inputSettings);
+      stripInputSettingsForUnsupportedPlatforms(
+        inputSettings,
+        this.properties.dailyConfig
+      );
       if (inputSettings.audio) {
         this._preloadCache.inputSettings.audio = inputSettings.audio;
       }
@@ -2198,8 +2206,7 @@ export default class DailyIframe extends EventEmitter {
         return Promise.reject(e);
       }
     } else {
-      // even if is already loaded, needs to validate the properties, so the dailyConfig properties can be inserted inside window._dailyConfig
-      // Validate that any provided url or token doesn't conflict with url or
+      // Ensure that any provided url or token doesn't conflict with url or
       // token already used to preAuth()
       if (this._didPreAuth) {
         if (properties.url && properties.url !== this.properties.url) {
@@ -2215,6 +2222,9 @@ export default class DailyIframe extends EventEmitter {
           return Promise.reject();
         }
       }
+      // validate the properties, and ensure that dailyConfig properties on the
+      // window are updated. Note: If the bundle hasn't been loaded, this occurs
+      // as part of the load() process
       this.validateProperties(properties);
       this.properties = { ...this.properties, ...properties };
     }
@@ -2228,8 +2238,14 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_START_CAMERA,
-          properties: makeSafeForPostMessage(this.properties),
-          preloadCache: makeSafeForPostMessage(this._preloadCache),
+          properties: makeSafeForPostMessage(
+            this.properties,
+            this._callFrameId
+          ),
+          preloadCache: makeSafeForPostMessage(
+            this._preloadCache,
+            this._callFrameId
+          ),
         },
         k
       );
@@ -2294,7 +2310,7 @@ export default class DailyIframe extends EventEmitter {
           resolve(msg.mediaTag);
         }
       };
-      window._dailyPreloadCache.customTrack = properties.track;
+      this._sharedTracks.customTrack = properties.track;
       properties.track = DAILY_CUSTOM_TRACK;
       this.sendMessageToCallMachine(
         {
@@ -2351,12 +2367,15 @@ export default class DailyIframe extends EventEmitter {
     return { deviceId: currentAudioDevice };
   }
 
-  cycleCamera() {
+  cycleCamera(properties = {}) {
     return new Promise((resolve) => {
       let k = (msg) => {
         resolve({ device: msg.device });
       };
-      this.sendMessageToCallMachine({ action: DAILY_METHOD_CYCLE_CAMERA }, k);
+      this.sendMessageToCallMachine(
+        { action: DAILY_METHOD_CYCLE_CAMERA, properties },
+        k
+      );
     });
   }
 
@@ -2401,9 +2420,11 @@ export default class DailyIframe extends EventEmitter {
     // cache these for use in subsequent calls
     if (audioDeviceId) {
       this._preloadCache.audioDeviceId = audioDeviceId;
+      this._sharedTracks.audioDeviceId = audioDeviceId;
     }
     if (videoDeviceId) {
       this._preloadCache.videoDeviceId = videoDeviceId;
+      this._sharedTracks.videoDeviceId = videoDeviceId;
     }
 
     // if we're in callObject mode and not loaded yet, don't do anything
@@ -2606,8 +2627,14 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_PREAUTH,
-          properties: makeSafeForPostMessage(this.properties),
-          preloadCache: makeSafeForPostMessage(this._preloadCache),
+          properties: makeSafeForPostMessage(
+            this.properties,
+            this._callFrameId
+          ),
+          preloadCache: makeSafeForPostMessage(
+            this._preloadCache,
+            this._callFrameId
+          ),
         },
         k
       );
@@ -2653,7 +2680,7 @@ export default class DailyIframe extends EventEmitter {
         this._callObjectLoader.cancel();
         const startTime = Date.now();
         this._callObjectLoader.load(
-          !!this.properties.dailyConfig?.avoidEval,
+          this.properties.dailyConfig,
           (wasNoOp) => {
             this._bundleLoadTime = wasNoOp ? 'no-op' : Date.now() - startTime;
             this._updateCallState(DAILY_STATE_LOADED);
@@ -2680,7 +2707,7 @@ export default class DailyIframe extends EventEmitter {
                   details: {
                     on: 'load',
                     sourceError: error,
-                    bundleUrl: callObjectBundleUrl(),
+                    bundleUrl: callObjectBundleUrl(this.properties.dailyConfig),
                   },
                 },
               };
@@ -2693,7 +2720,10 @@ export default class DailyIframe extends EventEmitter {
       });
     } else {
       // iframe
-      this._iframe.src = maybeProxyHttpsUrl(this.assembleMeetingUrl());
+      this._iframe.src = maybeProxyHttpsUrl(
+        this.assembleMeetingUrl(),
+        this.properties.dailyConfig
+      );
       return new Promise((resolve, reject) => {
         this._loadedCallback = (error) => {
           if (this._callState === DAILY_STATE_ERROR) {
@@ -2810,8 +2840,11 @@ export default class DailyIframe extends EventEmitter {
 
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_JOIN,
-      properties: makeSafeForPostMessage(this.properties),
-      preloadCache: makeSafeForPostMessage(this._preloadCache),
+      properties: makeSafeForPostMessage(this.properties, this._callFrameId),
+      preloadCache: makeSafeForPostMessage(
+        this._preloadCache,
+        this._callFrameId
+      ),
     });
     return new Promise((resolve, reject) => {
       this._joinedCallback = (participants, error) => {
@@ -2888,7 +2921,7 @@ export default class DailyIframe extends EventEmitter {
       );
     }
     if (captureOptions.mediaStream) {
-      this._preloadCache.screenMediaStream = captureOptions.mediaStream;
+      this._sharedTracks.screenMediaStream = captureOptions.mediaStream;
       captureOptions.mediaStream = DAILY_CUSTOM_TRACK;
     }
     if (isReactNativeIOS()) {
@@ -3479,7 +3512,7 @@ export default class DailyIframe extends EventEmitter {
     _maybeUpdateTestCallInProgressFlag(true);
 
     const { videoTrack, ...callArgs } = args;
-    this._preloadCache.videoTrackForConnectionQualityTest = videoTrack;
+    this._sharedTracks.videoTrackForConnectionQualityTest = videoTrack;
 
     if (this.needsLoad()) {
       try {
@@ -3581,7 +3614,7 @@ testPeerToPeerCallQuality() instead`);
     if (!this._validateVideoTrackForNetworkTests(videoTrack)) {
       throw new Error('Video track error');
     } else {
-      this._preloadCache.videoTrackForConnectionQualityTest = videoTrack;
+      this._sharedTracks.videoTrackForConnectionQualityTest = videoTrack;
     }
 
     return new Promise((resolve, reject) => {
@@ -3630,7 +3663,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (!this._validateVideoTrackForNetworkTests(videoTrack)) {
       throw new Error('Video track error');
     } else {
-      this._preloadCache.videoTrackForNetworkConnectivityTest = videoTrack;
+      this._sharedTracks.videoTrackForNetworkConnectivityTest = videoTrack;
     }
 
     return new Promise((resolve, reject) => {
@@ -3873,7 +3906,23 @@ stopTestPeerToPeerCallQuality() instead`);
         raw = raw.filter((d) => d.kind !== 'audiooutput');
       }
 
-      return { devices: raw.map((d) => JSON.parse(JSON.stringify(d))) };
+      return {
+        devices: raw.map((d) => {
+          const jsonDevice = JSON.parse(JSON.stringify(d));
+          // On RN we already return this "facing" field by default, we are just matching the behavior here
+          // the possible values are "user" or "environment"
+          if (
+            !isReactNative() &&
+            d.kind === 'videoinput' &&
+            d.getCapabilities
+          ) {
+            const cap = d.getCapabilities();
+            jsonDevice.facing =
+              cap?.facingMode?.length >= 1 ? cap.facingMode[0] : undefined;
+          }
+          return jsonDevice;
+        }),
+      };
     }
 
     return new Promise((resolve) => {
@@ -4318,8 +4367,8 @@ stopTestPeerToPeerCallQuality() instead`);
         ...this.properties,
         emb: this._callFrameId,
         embHref: encodeURIComponent(window.location.href),
-        proxy: window._dailyConfig?.proxyUrl
-          ? encodeURIComponent(window._dailyConfig?.proxyUrl)
+        proxy: this.properties.dailyConfig?.proxyUrl
+          ? encodeURIComponent(this.properties.dailyConfig?.proxyUrl)
           : undefined,
       },
       firstSep = props.url.match(/\?/) ? '&' : '?',
@@ -4414,7 +4463,7 @@ stopTestPeerToPeerCallQuality() instead`);
             event: 'bundle load',
             time: this._bundleLoadTime === 'no-op' ? 0 : this._bundleLoadTime,
             preLoaded: this._bundleLoadTime === 'no-op',
-            url: callObjectBundleUrl(),
+            url: callObjectBundleUrl(this.properties.dailyConfig),
           },
         };
         this.sendMessageToCallMachine(logMsg);
@@ -4835,6 +4884,15 @@ stopTestPeerToPeerCallQuality() instead`);
           this.emitDailyJSEvent(msg);
         }
         break;
+      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STARTED:
+        this._isScreenSharing = true;
+        this.emitDailyJSEvent(msg);
+        break;
+      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STOPPED:
+      case DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED:
+        this._isScreenSharing = false;
+        this.emitDailyJSEvent(msg);
+        break;
       case DAILY_EVENT_RECORDING_STARTED:
       case DAILY_EVENT_RECORDING_STOPPED:
       case DAILY_EVENT_RECORDING_STATS:
@@ -4847,9 +4905,6 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_CAMERA_ERROR:
       case DAILY_EVENT_APP_MSG:
       case DAILY_EVENT_TRANSCRIPTION_MSG:
-      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STARTED:
-      case DAILY_EVENT_LOCAL_SCREEN_SHARE_STOPPED:
-      case DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED:
       case DAILY_EVENT_NETWORK_CONNECTION:
       case DAILY_EVENT_RECORDING_DATA:
       case DAILY_EVENT_LIVE_STREAMING_STARTED:
@@ -4858,6 +4913,7 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_LIVE_STREAMING_ERROR:
       case DAILY_EVENT_NONFATAL_ERROR:
       case DAILY_EVENT_LANG_UPDATED:
+      case DAILY_EVENT_DIALIN_READY:
       case DAILY_EVENT_DIALIN_CONNECTED:
       case DAILY_EVENT_DIALIN_ERROR:
       case DAILY_EVENT_DIALIN_STOPPED:
@@ -5099,6 +5155,7 @@ stopTestPeerToPeerCallQuality() instead`);
       DEFAULT_SESSION_STATE,
       this._callObjectMode
     );
+    this._isScreenSharing = false;
     this._receiveSettings = {};
     this._inputSettings = undefined;
     this._sendSettings = {};
@@ -5470,7 +5527,7 @@ function resetPreloadCache(c) {
   // cache that should not persist
 }
 
-function makeSafeForPostMessage(props) {
+function makeSafeForPostMessage(props, callFrameId) {
   const safe = {};
   for (let p in props) {
     if (props[p] instanceof MediaStreamTrack) {
@@ -5481,16 +5538,17 @@ function makeSafeForPostMessage(props) {
       safe[p] = DAILY_CUSTOM_TRACK;
     } else if (p === 'dailyConfig') {
       if (props[p].modifyLocalSdpHook) {
-        if (window._dailyConfig) {
-          window._dailyConfig.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
-        }
+        let customCallbacks =
+          window._daily.instances[callFrameId].customCallbacks || {};
+        customCallbacks.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
+        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
         delete props[p].modifyLocalSdpHook;
       }
       if (props[p].modifyRemoteSdpHook) {
-        if (window._dailyConfig) {
-          window._dailyConfig.modifyRemoteSdpHook =
-            props[p].modifyRemoteSdpHook;
-        }
+        let customCallbacks =
+          window._daily.instances[callFrameId].customCallbacks || {};
+        customCallbacks.modifyRemoteSdpHook = props[p].modifyRemoteSdpHook;
+        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
         delete props[p].modifyRemoteSdpHook;
       }
       safe[p] = props[p];
@@ -5744,13 +5802,11 @@ function validateInputSettings(settings) {
 // Assumes `settings` is otherwise valid (passes `validateInputSettings()`).
 // Note: currently `processor` is required for `settings` to be valid, so we can
 // strip out the entire `video` or `audio` if processing isn't supported.
-function stripInputSettingsForUnsupportedPlatforms(settings) {
+function stripInputSettingsForUnsupportedPlatforms(settings, dailyConfig) {
   const unsupportedProcessors = [];
   if (
     settings.video &&
-    !isVideoProcessingSupported(
-      window._dailyConfig?.useLegacyVideoProcessor ?? false
-    )
+    !isVideoProcessingSupported(dailyConfig?.useLegacyVideoProcessor ?? false)
   ) {
     delete settings.video;
     unsupportedProcessors.push('video');

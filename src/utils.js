@@ -7,21 +7,21 @@ export function notImplementedError() {
 }
 
 // url assumed to start with 'https://'
-export function maybeProxyHttpsUrl(url) {
-  if (window._dailyConfig && window._dailyConfig.proxyUrl) {
+export function maybeProxyHttpsUrl(url, dailyConfig) {
+  if (dailyConfig?.proxyUrl) {
     return (
-      window._dailyConfig.proxyUrl +
-      (window._dailyConfig.proxyUrl.slice(-1) === '/' ? '' : '/') +
+      dailyConfig.proxyUrl +
+      (dailyConfig.proxyUrl.slice(-1) === '/' ? '' : '/') +
       url.substring(8)
     );
   }
   return url;
 }
 
-export function callObjectBundleUrl() {
+export function callObjectBundleUrl(dailyConfig) {
   // ADVANCED: if a custom bundle URL override is specified, use that.
-  if (window._dailyConfig && window._dailyConfig.callObjectBundleUrlOverride) {
-    return window._dailyConfig.callObjectBundleUrlOverride;
+  if (dailyConfig?.callObjectBundleUrlOverride) {
+    return dailyConfig.callObjectBundleUrlOverride;
   }
 
   // 1. Dev build of daily-js --> load bundle from __devCallMachineUrl__, which
@@ -33,13 +33,14 @@ export function callObjectBundleUrl() {
   return process.env.NODE_ENV === 'development'
     ? __devCallMachineUrl__
     : maybeProxyHttpsUrl(
-        `https://c.daily.co/call-machine/versioned/${__dailyJsVersion__}/static/call-machine-object-bundle.js`
+        `https://c.daily.co/call-machine/versioned/${__dailyJsVersion__}/static/call-machine-object-bundle.js`,
+        dailyConfig
       );
 }
 
 export function validateHttpUrl(string) {
   try {
-    let url = new URL(string);
+    new URL(string);
   } catch (_) {
     return false;
   }

@@ -395,9 +395,6 @@ export interface DailyAdvancedConfig {
   disableSimulcast?: boolean;
   keepCamIndicatorLightOn?: boolean;
   v2CamAndMic?: boolean;
-  experimentalGetUserMediaConstraintsModify?: (
-    constraints: MediaStreamConstraints
-  ) => void;
   /**
    * @deprecated This property will be removed. It has no affect.
    */
@@ -637,7 +634,7 @@ export interface DailyVideoElementInfo {
 }
 
 export interface DailyDeviceInfos {
-  camera: {} | MediaDeviceInfo;
+  camera: {} | DailyMediaDeviceInfo;
   mic: {} | MediaDeviceInfo;
   speaker: {} | MediaDeviceInfo;
 }
@@ -961,6 +958,7 @@ export interface DailyVideoReceiveSettings {
 export interface DailySingleParticipantReceiveSettings {
   video?: DailyVideoReceiveSettings;
   screenVideo?: DailyVideoReceiveSettings;
+  [customKey: string]: DailyVideoReceiveSettings | undefined;
 }
 
 export interface DailyReceiveSettings {
@@ -974,6 +972,7 @@ export interface DailyVideoReceiveSettingsUpdates {
 export interface DailySingleParticipantReceiveSettingsUpdates {
   video?: DailyVideoReceiveSettingsUpdates | 'inherit';
   screenVideo?: DailyVideoReceiveSettingsUpdates | 'inherit';
+  [customKey: string]: DailyVideoReceiveSettingsUpdates | 'inherit' | undefined;
 }
 
 export interface DailyReceiveSettingsUpdates {
@@ -1947,6 +1946,12 @@ export interface DailyScreenShareUpdateOptions {
   };
 }
 
+export type DailyCameraFacingMode = 'user' | 'environment' | undefined;
+
+export interface DailyMediaDeviceInfo extends MediaDeviceInfo {
+  facing?: DailyCameraFacingMode;
+}
+
 export interface DailyCall {
   iframe(): HTMLIFrameElement | null;
   join(properties?: DailyCallOptions): Promise<DailyParticipantsObject | void>;
@@ -2043,7 +2048,9 @@ export interface DailyCall {
   startRemoteParticipantsAudioLevelObserver(interval?: number): Promise<void>;
   stopRemoteParticipantsAudioLevelObserver(): void;
   getRemoteParticipantsAudioLevel(): DailyParticipantsAudioLevel;
-  cycleCamera(): Promise<{ device?: MediaDeviceInfo | null }>;
+  cycleCamera(properties?: {
+    preferDifferentFacingMode?: boolean;
+  }): Promise<{ device?: MediaDeviceInfo | null }>;
   cycleMic(): Promise<{ device?: MediaDeviceInfo | null }>;
   startCustomTrack(properties: StartCustomTrackOptions): Promise<string>;
   stopCustomTrack(trackName: string): Promise<string>;
@@ -2127,7 +2134,7 @@ export interface DailyCall {
   activeSpeakerMode(): boolean;
   subscribeToTracksAutomatically(): boolean;
   setSubscribeToTracksAutomatically(enabled: boolean): DailyCall;
-  enumerateDevices(): Promise<{ devices: MediaDeviceInfo[] }>;
+  enumerateDevices(): Promise<{ devices: DailyMediaDeviceInfo[] }>;
   sendAppMessage(data: any, to?: string | string[]): DailyCall;
   addFakeParticipant(details?: { aspectRatio: number }): DailyCall;
   setShowNamesMode(mode: false | 'always' | 'never'): DailyCall;
