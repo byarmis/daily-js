@@ -958,6 +958,7 @@ export interface DailyVideoReceiveSettings {
 export interface DailySingleParticipantReceiveSettings {
   video?: DailyVideoReceiveSettings;
   screenVideo?: DailyVideoReceiveSettings;
+  [customKey: string]: DailyVideoReceiveSettings | undefined;
 }
 
 export interface DailyReceiveSettings {
@@ -971,6 +972,7 @@ export interface DailyVideoReceiveSettingsUpdates {
 export interface DailySingleParticipantReceiveSettingsUpdates {
   video?: DailyVideoReceiveSettingsUpdates | 'inherit';
   screenVideo?: DailyVideoReceiveSettingsUpdates | 'inherit';
+  [customKey: string]: DailyVideoReceiveSettingsUpdates | 'inherit' | undefined;
 }
 
 export interface DailyReceiveSettingsUpdates {
