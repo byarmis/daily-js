@@ -117,6 +117,10 @@ export function isWebGLAvailable() {
   return _isWebGLAvailable;
 }
 
+export function canLoadBanuba() {
+  return isWebGLAvailable() && isVideoProcessingSupportedInBrowser_Banuba();
+}
+
 export function isVideoProcessingSupported(usingLegacyProvider = false) {
   if (isReactNative()) return false;
 
