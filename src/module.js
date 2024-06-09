@@ -3400,9 +3400,7 @@ export default class DailyIframe extends EventEmitter {
   async callTransfer(args) {
     methodOnlySupportedAfterJoin(this._callState, 'callTransfer()');
     if (!args) {
-      throw new Error(
-        `sessionId,fromEndPoint,toEndPoint are mandatory parameter`
-      );
+      throw new Error(`sessionId and toEndPoint are mandatory parameter`);
     }
     validateCallTransfer(args);
 
@@ -6210,45 +6208,21 @@ function validateConfigPropType(prop, propType) {
   }
 }
 
-function validateCallTransfer({
-  sessionId,
-  fromEndPoint,
-  toEndPoint,
-  useSipRefer,
-}) {
-  if (!(sessionId && fromEndPoint && toEndPoint)) {
-    throw new Error(
-      `sessionId,fromEndPoint,toEndPoint are mandatory parameter`
-    );
+function validateCallTransfer({ sessionId, toEndPoint, useSipRefer }) {
+  if (!(sessionId && toEndPoint)) {
+    throw new Error(`sessionId,toEndPoint are mandatory parameter`);
   }
-  if (
-    typeof sessionId !== 'string' ||
-    typeof fromEndPoint !== 'string' ||
-    typeof toEndPoint !== 'string'
-  ) {
-    throw new Error(
-      `sessionId,fromEndPoint,toEndPoint should be of string type`
-    );
+  if (typeof sessionId !== 'string' || typeof toEndPoint !== 'string') {
+    throw new Error(`sessionId,toEndPoint should be of string type`);
   }
-  if (fromEndPoint === toEndPoint) {
-    throw new Error(`"fromEndPoint" and "toEndPoint" cannot be same`);
+
+  if (useSipRefer && !toEndPoint.startsWith('sip:')) {
+    throw new Error(`"toEndPoint" must be "sip" to use "sipRefer`);
   }
-  if (
-    useSipRefer &&
-    !(toEndPoint.startsWith('sip:') && fromEndPoint.startsWith('sip:'))
-  ) {
-    throw new Error(
-      `"fromEndPoint" and "toEndPoint" must be "sip" to use "sipRefer`
-    );
-  }
+
   if (!(toEndPoint.startsWith('sip:') || toEndPoint.startsWith('+'))) {
     throw new Error(
       `toEndPoint: ${toEndPoint} must starts with either "sip:" or "+"`
-    );
-  }
-  if (!(fromEndPoint.startsWith('sip:') || fromEndPoint.startsWith('+'))) {
-    throw new Error(
-      `fromEndPoint: ${fromEndPoint} must starts with either "sip:" or "+"`
     );
   }
 }

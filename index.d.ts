@@ -1955,7 +1955,6 @@ export interface DailyMediaDeviceInfo extends MediaDeviceInfo {
 
 export interface DailyCallTransferOptions {
   sessionId: string;
-  fromEndPoint: string;
   toEndPoint: string;
   useSipRefer?: boolean;
 }
