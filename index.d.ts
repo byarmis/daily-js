@@ -1956,7 +1956,11 @@ export interface DailyMediaDeviceInfo extends MediaDeviceInfo {
 export interface DailyCallTransferOptions {
   sessionId: string;
   toEndPoint: string;
-  useSipRefer?: boolean;
+}
+
+export interface DailySipReferOptions {
+  sessionId: string;
+  toEndPoint: string;
 }
 
 export interface DailyCall {
@@ -2189,6 +2193,7 @@ export interface DailyCall {
   stopDialOut(options: { sessionId: string }): Promise<void>;
   sendDTMF(options: { sessionId: string; tones: string }): Promise<void>;
   callTransfer(options: DailyCallTransferOptions): Promise<void>;
+  sipRefer(options: DailySipReferOptions): Promise<void>;
 }
 
 declare const Daily: DailyCallFactory & DailyCallStaticUtils;

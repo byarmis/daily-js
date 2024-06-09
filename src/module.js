@@ -3402,6 +3402,34 @@ export default class DailyIframe extends EventEmitter {
     if (!args) {
       throw new Error(`sessionId and toEndPoint are mandatory parameter`);
     }
+    args.useSipRefer = false;
+    validateCallTransfer(args);
+
+    return new Promise((resolve, reject) => {
+      const k = (msg) => {
+        if (msg.error) {
+          reject(msg.error);
+        } else {
+          resolve(msg);
+        }
+      };
+
+      this.sendMessageToCallMachine(
+        {
+          action: DAILY_METHOD_CALL_TRANSFER,
+          ...args,
+        },
+        k
+      );
+    });
+  }
+
+  async sipRefer(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'callTransfer()');
+    if (!args) {
+      throw new Error(`sessionId and toEndPoint are mandatory parameter`);
+    }
+    args.useSipRefer = true;
     validateCallTransfer(args);
 
     return new Promise((resolve, reject) => {
