@@ -107,6 +107,7 @@ export type DailyEvent =
   | 'custom-button-click'
   | 'sidebar-view-changed'
   | 'dialin-connected'
+  | 'dialin-ready'
   | 'dialin-error'
   | 'dialin-stopped'
   | 'dialin-warning'
