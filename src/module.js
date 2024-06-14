@@ -224,7 +224,7 @@ import {
   DAILY_METHOD_TEST_P2P_CALL_QUALITY,
   DAILY_METHOD_START_DIALOUT,
   DAILY_METHOD_SEND_DTMF,
-  DAILY_METHOD_CALL_TRANSFER,
+  DAILY_METHOD_SIP_CALL_TRANSFER,
   DAILY_METHOD_STOP_DIALOUT,
   DAILY_EVENT_DIALIN_READY,
   DAILY_EVENT_DIALIN_CONNECTED,
@@ -3397,13 +3397,13 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
-  async callTransfer(args) {
-    methodOnlySupportedAfterJoin(this._callState, 'callTransfer()');
+  async sipCallTransfer(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'sipCallTransfer()');
     if (!args) {
-      throw new Error(`callTransfer() requires a sessionId and toEndPoint`);
+      throw new Error(`sipCallTransfer() requires a sessionId and toEndPoint`);
     }
     args.useSipRefer = false;
-    validateCallTransfer(args);
+    validateSipCallTransfer(args);
 
     return new Promise((resolve, reject) => {
       const k = (msg) => {
@@ -3416,7 +3416,7 @@ export default class DailyIframe extends EventEmitter {
 
       this.sendMessageToCallMachine(
         {
-          action: DAILY_METHOD_CALL_TRANSFER,
+          action: DAILY_METHOD_SIP_CALL_TRANSFER,
           ...args,
         },
         k
@@ -3425,12 +3425,12 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async sipRefer(args) {
-    methodOnlySupportedAfterJoin(this._callState, 'callTransfer()');
+    methodOnlySupportedAfterJoin(this._callState, 'sipRefer()');
     if (!args) {
       throw new Error(`sessionId and toEndPoint are mandatory parameter`);
     }
     args.useSipRefer = true;
-    validateCallTransfer(args);
+    validateSipCallTransfer(args);
 
     return new Promise((resolve, reject) => {
       const k = (msg) => {
@@ -3443,7 +3443,7 @@ export default class DailyIframe extends EventEmitter {
 
       this.sendMessageToCallMachine(
         {
-          action: DAILY_METHOD_CALL_TRANSFER,
+          action: DAILY_METHOD_SIP_CALL_TRANSFER,
           ...args,
         },
         k
@@ -6236,16 +6236,20 @@ function validateConfigPropType(prop, propType) {
   }
 }
 
-function validateCallTransfer({ sessionId, toEndPoint, useSipRefer }) {
+function validateSipCallTransfer({ sessionId, toEndPoint, useSipRefer }) {
   if (!(sessionId && toEndPoint)) {
     throw new Error(`${methodName}() requires a sessionId and toEndPoint`);
   }
   if (typeof sessionId !== 'string' || typeof toEndPoint !== 'string') {
-    throw new Error(`Invalid paramater: sessionId and toEndPoint must be of type string`);
+    throw new Error(
+      `Invalid paramater: sessionId and toEndPoint must be of type string`
+    );
   }
 
   if (useSipRefer && !toEndPoint.startsWith('sip:')) {
-    throw new Error(`"toEndPoint" must be either a "sip" address or daily room url`);
+    throw new Error(
+      `"toEndPoint" must be either a "sip" address or daily room url`
+    );
   }
 
   if (!(toEndPoint.startsWith('sip:') || toEndPoint.startsWith('+'))) {

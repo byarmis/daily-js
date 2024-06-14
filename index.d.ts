@@ -1953,7 +1953,7 @@ export interface DailyMediaDeviceInfo extends MediaDeviceInfo {
   facing?: DailyCameraFacingMode;
 }
 
-export interface DailyCallTransferOptions {
+export interface DailySipCallTransferOptions {
   sessionId: string;
   toEndPoint: string;
 }
@@ -2192,7 +2192,7 @@ export interface DailyCall {
   ): Promise<{ session?: DailyDialOutSession }>;
   stopDialOut(options: { sessionId: string }): Promise<void>;
   sendDTMF(options: { sessionId: string; tones: string }): Promise<void>;
-  callTransfer(options: DailyCallTransferOptions): Promise<void>;
+  sipCallTransfer(options: DailySipCallTransferOptions): Promise<void>;
   sipRefer(options: DailySipReferOptions): Promise<void>;
 }
 
