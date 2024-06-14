@@ -3400,7 +3400,7 @@ export default class DailyIframe extends EventEmitter {
   async callTransfer(args) {
     methodOnlySupportedAfterJoin(this._callState, 'callTransfer()');
     if (!args) {
-      throw new Error(`sessionId and toEndPoint are mandatory parameter`);
+      throw new Error(`callTransfer() requires a sessionId and toEndPoint`);
     }
     args.useSipRefer = false;
     validateCallTransfer(args);
@@ -6238,14 +6238,14 @@ function validateConfigPropType(prop, propType) {
 
 function validateCallTransfer({ sessionId, toEndPoint, useSipRefer }) {
   if (!(sessionId && toEndPoint)) {
-    throw new Error(`sessionId,toEndPoint are mandatory parameter`);
+    throw new Error(`${methodName}() requires a sessionId and toEndPoint`);
   }
   if (typeof sessionId !== 'string' || typeof toEndPoint !== 'string') {
-    throw new Error(`sessionId,toEndPoint should be of string type`);
+    throw new Error(`Invalid paramater: sessionId and toEndPoint must be of type string`);
   }
 
   if (useSipRefer && !toEndPoint.startsWith('sip:')) {
-    throw new Error(`"toEndPoint" must be "sip" to use "sipRefer`);
+    throw new Error(`"toEndPoint" must be either a "sip" address or daily room url`);
   }
 
   if (!(toEndPoint.startsWith('sip:') || toEndPoint.startsWith('+'))) {
