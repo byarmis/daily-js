@@ -369,6 +369,7 @@ export const DAILY_EVENT_DIALIN_ERROR = 'dialin-error';
 export const DAILY_EVENT_DIALIN_STOPPED = 'dialin-stopped';
 export const DAILY_EVENT_DIALIN_WARNING = 'dialin-warning';
 export const DAILY_EVENT_DIALOUT_CONNECTED = 'dialout-connected';
+export const DAILY_EVENT_DIALOUT_ANSWERED = 'dialout-answered';
 export const DAILY_EVENT_DIALOUT_ERROR = 'dialout-error';
 export const DAILY_EVENT_DIALOUT_STOPPED = 'dialout-stopped';
 export const DAILY_EVENT_DIALOUT_WARNING = 'dialout-warning';
