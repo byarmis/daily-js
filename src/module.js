@@ -1262,14 +1262,10 @@ export default class DailyIframe extends EventEmitter {
         // chrome (not safari)
         this._iframe.addEventListener('fullscreenchange', () => {
           if (document.fullscreenElement === this._iframe) {
-            this.emit(DAILY_EVENT_FULLSCREEN, {
-              action: DAILY_EVENT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_FULLSCREEN });
             this.sendMessageToCallMachine({ action: DAILY_EVENT_FULLSCREEN });
           } else {
-            this.emit(DAILY_EVENT_EXIT_FULLSCREEN, {
-              action: DAILY_EVENT_EXIT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_EXIT_FULLSCREEN });
             this.sendMessageToCallMachine({
               action: DAILY_EVENT_EXIT_FULLSCREEN,
             });
@@ -1279,14 +1275,10 @@ export default class DailyIframe extends EventEmitter {
         // safari
         this._iframe.addEventListener('webkitfullscreenchange', () => {
           if (document.webkitFullscreenElement === this._iframe) {
-            this.emit(DAILY_EVENT_FULLSCREEN, {
-              action: DAILY_EVENT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_FULLSCREEN });
             this.sendMessageToCallMachine({ action: DAILY_EVENT_FULLSCREEN });
           } else {
-            this.emit(DAILY_EVENT_EXIT_FULLSCREEN, {
-              action: DAILY_EVENT_EXIT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_EXIT_FULLSCREEN });
             this.sendMessageToCallMachine({
               action: DAILY_EVENT_EXIT_FULLSCREEN,
             });
@@ -1381,13 +1373,7 @@ export default class DailyIframe extends EventEmitter {
 
     this._destroyed = true;
     // fire call-instance-destroyed event here
-    try {
-      this.emit('call-instance-destroyed', {
-        action: 'call-instance-destroyed',
-      });
-    } catch (e) {
-      console.log('could not emit call-instance-destroyed');
-    }
+    this.emitDailyJSEvent({ action: 'call-instance-destroyed' });
 
     _callInstance = undefined;
     window?._daily?.instances &&
@@ -1998,7 +1984,6 @@ export default class DailyIframe extends EventEmitter {
       const k = (msg) => {
         delete msg.action;
         delete msg.callbackStamp;
-        delete msg.callClientId;
         resolve(msg);
       };
       this.sendMessageToCallMachine(
@@ -2081,7 +2066,6 @@ export default class DailyIframe extends EventEmitter {
       const k = (msg) => {
         delete msg.action;
         delete msg.callbackStamp;
-        delete msg.callClientId;
         resolve(msg);
       };
       try {
@@ -2667,11 +2651,7 @@ export default class DailyIframe extends EventEmitter {
     }
 
     this._updateCallState(DAILY_STATE_LOADING);
-    try {
-      this.emit(DAILY_EVENT_LOADING, { action: DAILY_EVENT_LOADING });
-    } catch (e) {
-      console.log("could not emit 'loading'", e);
-    }
+    this.emitDailyJSEvent({ action: DAILY_EVENT_LOADING });
 
     if (this._callObjectMode) {
       // non-iframe, callObjectMode
@@ -2685,15 +2665,11 @@ export default class DailyIframe extends EventEmitter {
             this._updateCallState(DAILY_STATE_LOADED);
             // Only need to emit event if load was a no-op, since the loaded
             // bundle won't be emitting it if it's not executed again
-            wasNoOp &&
-              this.emit(DAILY_EVENT_LOADED, { action: DAILY_EVENT_LOADED });
+            wasNoOp && this.emitDailyJSEvent({ action: DAILY_EVENT_LOADED });
             resolve();
           },
           (error, willRetry) => {
-            this.emit(DAILY_EVENT_LOAD_ATTEMPT_FAILED, {
-              action: DAILY_EVENT_LOAD_ATTEMPT_FAILED,
-              error,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_LOAD_ATTEMPT_FAILED });
             if (!willRetry) {
               this._updateCallState(DAILY_STATE_ERROR);
               this.resetMeetingDependentVars();
@@ -2711,7 +2687,7 @@ export default class DailyIframe extends EventEmitter {
                 },
               };
               this._maybeSendToSentry(dailyError);
-              this.emit(DAILY_EVENT_ERROR, dailyError);
+              this.emitDailyJSEvent(dailyError);
               reject(error.msg);
             }
           }
@@ -2818,13 +2794,7 @@ export default class DailyIframe extends EventEmitter {
       return;
     }
     this._updateCallState(DAILY_STATE_JOINING, false);
-    try {
-      this.emit(DAILY_EVENT_JOINING_MEETING, {
-        action: DAILY_EVENT_JOINING_MEETING,
-      });
-    } catch (e) {
-      console.log("could not emit 'joining-meeting'", e);
-    }
+    this.emitDailyJSEvent({ action: DAILY_EVENT_JOINING_MEETING });
 
     // set input settings in the preload cache
     if (!this._preloadCache.inputSettings) {
@@ -2892,11 +2862,7 @@ export default class DailyIframe extends EventEmitter {
         this._callObjectLoader.cancel();
         this._updateCallState(DAILY_STATE_LEFT);
         this.resetMeetingDependentVars();
-        try {
-          this.emit(DAILY_STATE_LEFT, { action: DAILY_STATE_LEFT });
-        } catch (e) {
-          console.log("could not emit 'left-meeting'", e);
-        }
+        this.emitDailyJSEvent({ action: DAILY_STATE_LEFT });
         resolve();
       } else {
         this._resolveLeave = resolve;
@@ -2927,7 +2893,7 @@ export default class DailyIframe extends EventEmitter {
       const nativeUtils = this.nativeUtils();
       const isScreenBeingCaptured = await nativeUtils.isScreenBeingCaptured();
       if (isScreenBeingCaptured) {
-        this.emit(DAILY_EVENT_NONFATAL_ERROR, {
+        this.emitDailyJSEvent({
           action: DAILY_EVENT_NONFATAL_ERROR,
           type: DAILY_SCREEN_SHARE_ERROR_TYPE,
           errorMsg:
@@ -4216,7 +4182,7 @@ stopTestPeerToPeerCallQuality() instead`);
          * - this method is the only way `theme-updated` can change
          */
         try {
-          this.emit(DAILY_EVENT_THEME_UPDATED, {
+          this.emitDailyJSEvent({
             action: DAILY_EVENT_THEME_UPDATED,
             theme: this.properties.theme,
           });
@@ -4530,22 +4496,14 @@ stopTestPeerToPeerCallQuality() instead`);
           this._loadedCallback();
           this._loadedCallback = null;
         }
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_JOINED_MEETING:
         if (this._joinedCallback) {
           this._joinedCallback(msg.participants);
           this._joinedCallback = null;
         }
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_PARTICIPANT_JOINED:
       case DAILY_EVENT_PARTICIPANT_UPDATED:
@@ -4597,11 +4555,7 @@ stopTestPeerToPeerCallQuality() instead`);
           ) {
             this._participants[id] = { ...msg.participant };
             this.toggleParticipantAudioBasedOnNativeAudioFocus();
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
@@ -4614,21 +4568,13 @@ stopTestPeerToPeerCallQuality() instead`);
           }
           // delete from local cach
           delete this._participants[msg.participant.session_id];
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_PARTICIPANT_COUNTS_UPDATED:
         if (!dequal(this._participantCounts, msg.participantCounts)) {
           this._participantCounts = msg.participantCounts;
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_ACCESS_STATE_UPDATED: {
@@ -4640,29 +4586,20 @@ stopTestPeerToPeerCallQuality() instead`);
         }
         if (!dequal(this._accessState, newAccessState)) {
           this._accessState = newAccessState;
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       }
       case DAILY_EVENT_MEETING_SESSION_SUMMARY_UPDATED:
         if (msg.meetingSession) {
           this._meetingSessionSummary = msg.meetingSession;
-          try {
-            delete msg.callClientId;
-            this.emit(msg.action, msg);
-            // send deprecated backwards-compatible event
-            const msg_cp = {
-              ...msg,
-              action: 'meeting-session-updated',
-            };
-            this.emit(msg_cp.action, msg_cp);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
+          // send deprecated backwards-compatible event
+          const msg_cp = {
+            ...msg,
+            action: 'meeting-session-updated',
+          };
+          this.emitDailyJSEvent(msg_cp);
         }
         break;
       case DAILY_EVENT_ERROR: {
@@ -4684,11 +4621,7 @@ stopTestPeerToPeerCallQuality() instead`);
           this._joinedCallback(null, event);
           this._joinedCallback = null;
         }
-        try {
-          this.emit(msg.action, event);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(event);
         break;
       }
       case DAILY_EVENT_LEFT_MEETING:
@@ -4703,19 +4636,11 @@ stopTestPeerToPeerCallQuality() instead`);
           this._resolveLeave();
           this._resolveLeave = null;
         }
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_SELECTED_DEVICES_UPDATED:
         if (msg.devices) {
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_NETWORK_QUALITY_CHANGE:
@@ -4727,33 +4652,21 @@ stopTestPeerToPeerCallQuality() instead`);
           ) {
             this._network.quality = quality;
             this._network.threshold = threshold;
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
       case DAILY_EVENT_CPU_LOAD_CHANGE:
         {
           if (msg && msg.cpuLoadState) {
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
       case DAILY_EVENT_FACE_COUNTS_UPDATED:
         {
           if (msg && msg.faceCounts !== undefined) {
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
@@ -4762,14 +4675,10 @@ stopTestPeerToPeerCallQuality() instead`);
           let { activeSpeaker } = msg;
           if (this._activeSpeaker.peerId !== activeSpeaker.peerId) {
             this._activeSpeaker.peerId = activeSpeaker.peerId;
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                activeSpeaker: this._activeSpeaker,
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              activeSpeaker: this._activeSpeaker,
+            });
           }
         }
         break;
@@ -4778,14 +4687,10 @@ stopTestPeerToPeerCallQuality() instead`);
           if (this._callObjectMode) return;
           const { show } = msg;
           this._showLocalVideo = show;
-          try {
-            this.emit(msg.action, {
-              action: msg.action,
-              show,
-            });
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent({
+            action: msg.action,
+            show,
+          });
         }
         break;
       case DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE:
@@ -4793,14 +4698,10 @@ stopTestPeerToPeerCallQuality() instead`);
           const { enabled } = msg;
           if (this._activeSpeakerMode !== enabled) {
             this._activeSpeakerMode = enabled;
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                enabled: this._activeSpeakerMode,
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              enabled: this._activeSpeakerMode,
+            });
           }
         }
         break;
@@ -4808,14 +4709,10 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_WAITING_PARTICIPANT_UPDATED:
       case DAILY_EVENT_WAITING_PARTICIPANT_REMOVED:
         this._waitingParticipants = msg.allWaitingParticipants;
-        try {
-          this.emit(msg.action, {
-            action: msg.action,
-            participant: msg.participant,
-          });
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent({
+          action: msg.action,
+          participant: msg.participant,
+        });
         break;
       case DAILY_EVENT_RECEIVE_SETTINGS_UPDATED:
         // NOTE: doing equality check here rather than before sending message in
@@ -4823,14 +4720,10 @@ stopTestPeerToPeerCallQuality() instead`);
         // receive settings
         if (!dequal(this._receiveSettings, msg.receiveSettings)) {
           this._receiveSettings = msg.receiveSettings;
-          try {
-            this.emit(msg.action, {
-              action: msg.action,
-              receiveSettings: msg.receiveSettings,
-            });
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent({
+            action: msg.action,
+            receiveSettings: msg.receiveSettings,
+          });
         }
         break;
       case DAILY_EVENT_INPUT_SETTINGS_UPDATED:
@@ -4842,14 +4735,10 @@ stopTestPeerToPeerCallQuality() instead`);
           this._inputSettings = msg.inputSettings;
           this._preloadCache.inputSettings = {}; // clear cache, if any
           if (!dequal(prevInputSettings, this._getInputSettings())) {
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                inputSettings: this._getInputSettings(),
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              inputSettings: this._getInputSettings(),
+            });
           }
         }
         break;
@@ -4858,14 +4747,10 @@ stopTestPeerToPeerCallQuality() instead`);
           if (!dequal(this._sendSettings, msg.sendSettings)) {
             this._sendSettings = msg.sendSettings;
             this._preloadCache.sendSettings = null; // clear cache, if any
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                sendSettings: msg.sendSettings,
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              sendSettings: msg.sendSettings,
+            });
           }
         }
         break;
@@ -4976,11 +4861,7 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_DIALOUT_ERROR:
       case DAILY_EVENT_DIALOUT_STOPPED:
       case DAILY_EVENT_DIALOUT_WARNING:
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_REQUEST_FULLSCREEN:
         this.requestFullscreen();
@@ -4998,13 +4879,7 @@ stopTestPeerToPeerCallQuality() instead`);
       return;
     }
     if (!thisP.local && thisP[key] === false && prevP[key] !== thisP[key]) {
-      try {
-        this.emit(DAILY_EVENT_RECORDING_STOPPED, {
-          action: DAILY_EVENT_RECORDING_STOPPED,
-        });
-      } catch (e) {
-        console.log('could not emit', e);
-      }
+      this.emitDailyJSEvent({ action: DAILY_EVENT_RECORDING_STOPPED });
     }
   }
 
@@ -5014,13 +4889,7 @@ stopTestPeerToPeerCallQuality() instead`);
       return;
     }
     if (!thisP.local && thisP[key] === true && prevP[key] !== thisP[key]) {
-      try {
-        this.emit(DAILY_EVENT_RECORDING_STARTED, {
-          action: DAILY_EVENT_RECORDING_STARTED,
-        });
-      } catch (e) {
-        console.log('could not emit', e);
-      }
+      this.emitDailyJSEvent({ action: DAILY_EVENT_RECORDING_STARTED });
     }
   }
 
@@ -5033,16 +4902,12 @@ stopTestPeerToPeerCallQuality() instead`);
       !thisTrack ||
       prevTrack.id !== thisTrack.id
     ) {
-      try {
-        this.emit(DAILY_EVENT_TRACK_STOPPED, {
-          action: DAILY_EVENT_TRACK_STOPPED,
-          track: prevTrack,
-          participant: thisP,
-          type,
-        });
-      } catch (e) {
-        console.log('maybeEventTrackStopped: could not emit', e);
-      }
+      this.emitDailyJSEvent({
+        action: DAILY_EVENT_TRACK_STOPPED,
+        track: prevTrack,
+        participant: thisP,
+        type,
+      });
     }
   }
 
@@ -5055,16 +4920,12 @@ stopTestPeerToPeerCallQuality() instead`);
       prevTrack.readyState === 'ended' ||
       thisTrack.id !== prevTrack.id
     ) {
-      try {
-        this.emit(DAILY_EVENT_TRACK_STARTED, {
-          action: DAILY_EVENT_TRACK_STARTED,
-          track: thisTrack,
-          participant: thisP,
-          type,
-        });
-      } catch (e) {
-        console.log('maybeEventTrackStarted: could not emit', e);
-      }
+      this.emitDailyJSEvent({
+        action: DAILY_EVENT_TRACK_STARTED,
+        track: thisTrack,
+        participant: thisP,
+        type,
+      });
     }
   }
 
@@ -5106,6 +4967,7 @@ stopTestPeerToPeerCallQuality() instead`);
   emitDailyJSEvent(msg) {
     {
       try {
+        msg.callClientId = this._callClientId;
         this.emit(msg.action, msg);
       } catch (e) {
         console.log('could not emit', msg, e);
@@ -5302,7 +5164,7 @@ stopTestPeerToPeerCallQuality() instead`);
     // `call.enumerateDevices()` (and that method is constrainted to returning
     // structured-clonable values due to the call machine message channel).
     newDevices = newDevices.map((d) => JSON.parse(JSON.stringify(d)));
-    this.emit(DAILY_EVENT_AVAILABLE_DEVICES_UPDATED, {
+    this.emitDailyJSEvent({
       action: DAILY_EVENT_AVAILABLE_DEVICES_UPDATED,
       availableDevices: newDevices,
     });
