@@ -3403,7 +3403,7 @@ export default class DailyIframe extends EventEmitter {
       throw new Error(`sipCallTransfer() requires a sessionId and toEndPoint`);
     }
     args.useSipRefer = false;
-    validateSipCallTransfer(args);
+    validateSipCallTransfer(args, 'sipCallTransfer');
 
     return new Promise((resolve, reject) => {
       const k = (msg) => {
@@ -3430,7 +3430,7 @@ export default class DailyIframe extends EventEmitter {
       throw new Error(`sessionId and toEndPoint are mandatory parameter`);
     }
     args.useSipRefer = true;
-    validateSipCallTransfer(args);
+    validateSipCallTransfer(args, 'sipRefer');
 
     return new Promise((resolve, reject) => {
       const k = (msg) => {
@@ -6236,7 +6236,10 @@ function validateConfigPropType(prop, propType) {
   }
 }
 
-function validateSipCallTransfer({ sessionId, toEndPoint, useSipRefer }) {
+function validateSipCallTransfer(
+  { sessionId, toEndPoint, useSipRefer },
+  methodName
+) {
   if (!(sessionId && toEndPoint)) {
     throw new Error(`${methodName}() requires a sessionId and toEndPoint`);
   }
