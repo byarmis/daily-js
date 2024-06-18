@@ -1135,13 +1135,13 @@ export default class DailyIframe extends EventEmitter {
 
     // This ID is used internally to coordinate communication between this
     // Daily instance and the call machine.
-    this._callClientId = randomStringId();
-    window._daily.instances[this._callClientId] = {};
+    this.callClientId = randomStringId();
+    window._daily.instances[this.callClientId] = {};
 
     // This is how we share tracks across the "wire" to the call bundle since
     // tracks can't be JSONified for postMessage.
     this._sharedTracks = {};
-    window._daily.instances[this._callClientId].tracks = this._sharedTracks;
+    window._daily.instances[this.callClientId].tracks = this._sharedTracks;
 
     properties.dailyJsVersion = DailyIframe.version();
     this._iframe = iframeish;
@@ -1230,7 +1230,7 @@ export default class DailyIframe extends EventEmitter {
     }
 
     this._callObjectLoader = this._callObjectMode
-      ? new CallObjectLoader(this._callClientId)
+      ? new CallObjectLoader(this.callClientId)
       : null;
     this._callState = DAILY_STATE_NEW; // only update via updateIsPreparingToJoin() or _updateCallState()
     this._isPreparingToJoin = false; // only update via _updateCallState()
@@ -1327,7 +1327,7 @@ export default class DailyIframe extends EventEmitter {
 
     this._messageChannel.addListenerForMessagesFromCallMachine(
       this.handleMessageFromCallMachine,
-      this._callClientId,
+      this.callClientId,
       this
     );
   }
@@ -1377,11 +1377,11 @@ export default class DailyIframe extends EventEmitter {
 
     _callInstance = undefined;
     window?._daily?.instances &&
-      delete window._daily.instances[this._callClientId];
+      delete window._daily.instances[this.callClientId];
     if (this.strictMode) {
       // we set this to undefined in strictMode so that all calls to
       // the underlying channel's sendMessageToCallMachine will fail
-      this._callClientId = undefined;
+      this.callClientId = undefined;
     }
   }
 
@@ -2223,11 +2223,11 @@ export default class DailyIframe extends EventEmitter {
           action: DAILY_METHOD_START_CAMERA,
           properties: makeSafeForPostMessage(
             this.properties,
-            this._callClientId
+            this.callClientId
           ),
           preloadCache: makeSafeForPostMessage(
             this._preloadCache,
-            this._callClientId
+            this.callClientId
           ),
         },
         k
@@ -2612,11 +2612,11 @@ export default class DailyIframe extends EventEmitter {
           action: DAILY_METHOD_PREAUTH,
           properties: makeSafeForPostMessage(
             this.properties,
-            this._callClientId
+            this.callClientId
           ),
           preloadCache: makeSafeForPostMessage(
             this._preloadCache,
-            this._callClientId
+            this.callClientId
           ),
         },
         k
@@ -2809,10 +2809,10 @@ export default class DailyIframe extends EventEmitter {
 
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_JOIN,
-      properties: makeSafeForPostMessage(this.properties, this._callClientId),
+      properties: makeSafeForPostMessage(this.properties, this.callClientId),
       preloadCache: makeSafeForPostMessage(
         this._preloadCache,
-        this._callClientId
+        this.callClientId
       ),
     });
     return new Promise((resolve, reject) => {
@@ -4384,7 +4384,7 @@ stopTestPeerToPeerCallQuality() instead`);
     // handle case of url with query string and without
     let props = {
         ...this.properties,
-        emb: this._callClientId,
+        emb: this.callClientId,
         embHref: encodeURIComponent(window.location.href),
         proxy: this.properties.dailyConfig?.proxyUrl
           ? encodeURIComponent(this.properties.dailyConfig?.proxyUrl)
@@ -4432,7 +4432,7 @@ stopTestPeerToPeerCallQuality() instead`);
       message,
       callback,
       this._iframe,
-      this._callClientId
+      this.callClientId
     );
   }
 
@@ -4447,14 +4447,14 @@ stopTestPeerToPeerCallQuality() instead`);
     this._messageChannel.forwardPackagedMessageToCallMachine(
       msg,
       this._iframe,
-      this._callClientId
+      this.callClientId
     );
   }
 
   addListenerForPackagedMessagesFromCallMachine(listener) {
     return this._messageChannel.addListenerForPackagedMessagesFromCallMachine(
       listener,
-      this._callClientId
+      this.callClientId
     );
   }
 
@@ -4967,7 +4967,7 @@ stopTestPeerToPeerCallQuality() instead`);
   emitDailyJSEvent(msg) {
     {
       try {
-        msg.callClientId = this._callClientId;
+        msg.callClientId = this.callClientId;
         this.emit(msg.action, msg);
       } catch (e) {
         console.log('could not emit', msg, e);
@@ -5086,7 +5086,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (!isReactNative()) {
       return;
     }
-    this.nativeUtils().setKeepDeviceAwake(keepAwake, this._callClientId);
+    this.nativeUtils().setKeepDeviceAwake(keepAwake, this.callClientId);
   }
 
   updateDeviceAudioMode(useInCallAudioMode) {
@@ -5127,7 +5127,7 @@ stopTestPeerToPeerCallQuality() instead`);
       title,
       subtitle,
       iconName,
-      this._callClientId
+      this.callClientId
     );
   }
 
@@ -5301,7 +5301,7 @@ stopTestPeerToPeerCallQuality() instead`);
         logMsg,
         null,
         this._iframe,
-        this._callClientId
+        this.callClientId
       );
     } else if (_callInstance && !_callInstance.needsLoad()) {
       const logMsg = {
@@ -5421,7 +5421,7 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   _callMachine() {
-    return window._daily?.instances?.[this._callClientId]?.callMachine;
+    return window._daily?.instances?.[this.callClientId]?.callMachine;
   }
 }
 
