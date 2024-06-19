@@ -1028,7 +1028,12 @@ export interface DailyInputVideoSettings {
   processor?: DailyInputVideoProcessorSettings;
 }
 
-export interface DailyEventObjectNoPayload {
+export type DailyEventObjectBase = {
+  action: DailyEvent;
+  callClientId: string;
+};
+
+export interface DailyEventObjectNoPayload extends DailyEventObjectBase {
   action: Extract<
     DailyEvent,
     | 'loading'
@@ -1093,7 +1098,7 @@ export type DailyCameraErrorObject<T extends DailyCameraErrorType> =
     ? DailyCamUnknownError
     : any;
 
-export interface DailyEventObjectCameraError {
+export interface DailyEventObjectCameraError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'camera-error'>;
   errorMsg: {
     errorMsg: string;
@@ -1129,37 +1134,38 @@ export interface DailyFatalConnectionError extends DailyFatalError {
 export type DailyFatalErrorObject<T extends DailyFatalErrorType> =
   T extends DailyFatalConnectionError['type'] ? DailyFatalConnectionError : any;
 
-export interface DailyEventObjectFatalError {
+export interface DailyEventObjectFatalError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'error'>;
   errorMsg: string;
   error?: DailyFatalErrorObject<DailyFatalErrorType>;
 }
 
-export interface DailyEventObjectNonFatalError {
+export interface DailyEventObjectNonFatalError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'nonfatal-error'>;
   type: DailyNonFatalErrorType;
   errorMsg: string;
   details?: any;
 }
 
-export interface DailyEventObjectGenericError {
+export interface DailyEventObjectGenericError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'load-attempt-failed'>;
   errorMsg: string;
 }
 
-export interface DailyEventObjectLiveStreamingError {
+export interface DailyEventObjectLiveStreamingError
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'live-streaming-error'>;
   errorMsg: string;
   instanceId?: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectParticipants {
+export interface DailyEventObjectParticipants extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'joined-meeting'>;
   participants: DailyParticipantsObject;
 }
 
-export interface DailyEventObjectParticipant {
+export interface DailyEventObjectParticipant extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'participant-joined' | 'participant-updated'>;
   participant: DailyParticipant;
 }
@@ -1167,7 +1173,7 @@ export interface DailyEventObjectParticipant {
 // only 1 reason reported for now. more to come.
 export type DailyParticipantLeftReason = 'hidden';
 
-export interface DailyEventObjectParticipantLeft {
+export interface DailyEventObjectParticipantLeft extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'participant-left'>;
   participant: DailyParticipant;
   // reason undefined if participant left for any reason other than those listed
@@ -1175,12 +1181,14 @@ export interface DailyEventObjectParticipantLeft {
   reason?: DailyParticipantLeftReason;
 }
 
-export interface DailyEventObjectParticipantCounts {
+export interface DailyEventObjectParticipantCounts
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'participant-counts-updated'>;
   participantCounts: DailyParticipantCounts;
 }
 
-export interface DailyEventObjectWaitingParticipant {
+export interface DailyEventObjectWaitingParticipant
+  extends DailyEventObjectBase {
   action: Extract<
     DailyEvent,
     | 'waiting-participant-added'
@@ -1190,11 +1198,14 @@ export interface DailyEventObjectWaitingParticipant {
   participant: DailyWaitingParticipant;
 }
 
-export interface DailyEventObjectAccessState extends DailyAccessState {
+export interface DailyEventObjectAccessState
+  extends DailyAccessState,
+    DailyEventObjectBase {
   action: Extract<DailyEvent, 'access-state-updated'>;
 }
 
-export interface DailyEventObjectMeetingSessionSummaryUpdated {
+export interface DailyEventObjectMeetingSessionSummaryUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'meeting-session-summary-updated'>;
   meetingSession: DailyMeetingSessionSummary;
 }
@@ -1204,17 +1215,19 @@ export interface DailyEventObjectMeetingSessionSummaryUpdated {
  * This event will be removed. Use the
  * DailyEventObjectMeetingSessionSummaryUpdated type instead.
  */
-export interface DailyEventObjectMeetingSessionUpdated {
+export interface DailyEventObjectMeetingSessionUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'meeting-session-updated'>;
   meetingSession: DailyMeetingSession;
 }
 
-export interface DailyEventObjectMeetingSessionStateUpdated {
+export interface DailyEventObjectMeetingSessionStateUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'meeting-session-state-updated'>;
   meetingSessionState: DailyMeetingSessionState;
 }
 
-export interface DailyEventObjectTrack {
+export interface DailyEventObjectTrack extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'track-started' | 'track-stopped'>;
   participant: DailyParticipant | null; // null if participant left meeting
   track: MediaStreamTrack;
@@ -1228,7 +1241,7 @@ export interface DailyEventObjectTrack {
     | string; // string - for custom tracks
 }
 
-export interface DailyEventObjectRecordingStarted {
+export interface DailyEventObjectRecordingStarted extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'recording-started'>;
   local?: boolean;
   recordingId?: string;
@@ -1238,25 +1251,25 @@ export interface DailyEventObjectRecordingStarted {
   instanceId?: string;
 }
 
-export interface DailyEventObjectRecordingStopped {
+export interface DailyEventObjectRecordingStopped extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'recording-stopped'>;
   instanceId?: string;
 }
 
-export interface DailyEventObjectRecordingError {
+export interface DailyEventObjectRecordingError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'recording-error'>;
   errorMsg: string;
   instanceId?: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectRecordingData {
+export interface DailyEventObjectRecordingData extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'recording-data'>;
   data: Uint8Array;
   finished: boolean;
 }
 
-export interface DailyEventObjectMouseEvent {
+export interface DailyEventObjectMouseEvent extends DailyEventObjectBase {
   action: Extract<
     DailyEvent,
     'click' | 'mousedown' | 'mouseup' | 'mouseover' | 'mousemove'
@@ -1280,7 +1293,7 @@ export interface DailyEventObjectMouseEvent {
   participant: DailyParticipant;
 }
 
-export interface DailyEventObjectTouchEvent {
+export interface DailyEventObjectTouchEvent extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'touchstart' | 'touchmove' | 'touchend'>;
   event: {
     type: string;
@@ -1292,26 +1305,28 @@ export interface DailyEventObjectTouchEvent {
   participant: DailyParticipant;
 }
 
-export interface DailyEventObjectNetworkQualityEvent {
+export interface DailyEventObjectNetworkQualityEvent
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'network-quality-change'>;
   threshold: 'good' | 'low' | 'very-low';
   quality: number;
 }
 
-export interface DailyEventObjectCpuLoadEvent {
+export interface DailyEventObjectCpuLoadEvent extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'cpu-load-change'>;
   cpuLoadState: 'low' | 'high';
   cpuLoadStateReason: 'encode' | 'decode' | 'scheduleDuration' | 'none'; // We are currently not using the Inter frame Delay to change the cpu load state
 }
 
-export interface DailyEventObjectFaceCounts {
+export interface DailyEventObjectFaceCounts extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'face-counts-updated'>;
   faceCounts: number;
 }
 
 export type NetworkConnectionType = 'signaling' | 'peer-to-peer' | 'sfu';
 
-export interface DailyEventObjectNetworkConnectionEvent {
+export interface DailyEventObjectNetworkConnectionEvent
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'network-connection'>;
   type: NetworkConnectionType;
   event: string;
@@ -1319,25 +1334,29 @@ export interface DailyEventObjectNetworkConnectionEvent {
   sfu_id?: string;
 }
 
-export interface DailyEventObjectActiveSpeakerChange {
+export interface DailyEventObjectActiveSpeakerChange
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'active-speaker-change'>;
   activeSpeaker: {
     peerId: string;
   };
 }
 
-export interface DailyEventObjectActiveSpeakerModeChange {
+export interface DailyEventObjectActiveSpeakerModeChange
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'active-speaker-mode-change'>;
   enabled: boolean;
 }
 
-export interface DailyEventObjectAppMessage<Data = any> {
+export interface DailyEventObjectAppMessage<Data = any>
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'app-message'>;
   data: Data;
   fromId: string;
 }
 
-export interface DailyEventObjectTranscriptionMessage {
+export interface DailyEventObjectTranscriptionMessage
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-message'>;
   participantId: string;
   text: string;
@@ -1345,69 +1364,79 @@ export interface DailyEventObjectTranscriptionMessage {
   rawResponse: Record<string, any>;
 }
 
-export interface DailyEventObjectLangUpdated {
+export interface DailyEventObjectLangUpdated extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'lang-updated'>;
   lang: DailyLanguage;
   langSetting: DailyLanguageSetting;
 }
 
-export interface DailyEventObjectThemeUpdated {
+export interface DailyEventObjectThemeUpdated extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'theme-updated'>;
   theme: DailyThemeConfig;
 }
 
-export interface DailyEventObjectReceiveSettingsUpdated {
+export interface DailyEventObjectReceiveSettingsUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'receive-settings-updated'>;
   receiveSettings: DailyReceiveSettings;
 }
 
-export interface DailyEventObjectAvailableDevicesUpdated {
+export interface DailyEventObjectAvailableDevicesUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'available-devices-updated'>;
   availableDevices: MediaDeviceInfo[];
 }
 
-export interface DailyEventObjectShowLocalVideoChanged {
+export interface DailyEventObjectShowLocalVideoChanged
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'show-local-video-changed'>;
   show: boolean;
 }
-export interface DailyEventObjectInputSettingsUpdated {
+export interface DailyEventObjectInputSettingsUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'input-settings-updated'>;
   inputSettings: DailyInputSettings;
 }
 
-export interface DailyEventObjectSendSettingsUpdated {
+export interface DailyEventObjectSendSettingsUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'send-settings-updated'>;
   sendSettings: DailySendSettings;
 }
 
-export interface DailyEventObjectLocalAudioLevel {
+export interface DailyEventObjectLocalAudioLevel extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'local-audio-level'>;
   audioLevel: number;
 }
 
-export interface DailyEventObjectRemoteParticipantsAudioLevel {
+export interface DailyEventObjectRemoteParticipantsAudioLevel
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'remote-participants-audio-level'>;
   participantsAudioLevel: DailyParticipantsAudioLevel;
 }
 
-export interface DailyEventObjectLiveStreamingStarted {
+export interface DailyEventObjectLiveStreamingStarted
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'live-streaming-started'>;
   layout?: DailyLiveStreamingLayoutConfig<'start'>;
   instanceId?: string;
 }
-export interface DailyEventObjectLiveStreamingUpdated {
+export interface DailyEventObjectLiveStreamingUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'live-streaming-updated'>;
   endpoint?: DailyStreamingEndpoint;
   state: DailyStreamingState;
   instanceId?: string;
 }
 
-export interface DailyEventObjectLiveStreamingStopped {
+export interface DailyEventObjectLiveStreamingStopped
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'live-streaming-stopped'>;
   instanceId?: string;
 }
 
-export interface DailyEventObjectTranscriptionStarted {
+export interface DailyEventObjectTranscriptionStarted
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-started'>;
   transcriptId?: string;
   language: string;
@@ -1422,9 +1451,16 @@ export interface DailyEventObjectTranscriptionStarted {
   startedBy: string;
 }
 
-export interface DailyEventObjectTranscriptionStopped {
+export interface DailyEventObjectTranscriptionStopped
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-stopped'>;
   updatedBy: string;
+}
+
+export interface DailyEventObjectTranscriptionError
+  extends DailyEventObjectBase {
+  action: Extract<DailyEvent, 'transcription-error'>;
+  errorMsg?: string;
 }
 
 export interface DailyWebsocketConnectivityTestResults {
@@ -1511,7 +1547,8 @@ export type DailyRemoteMediaPlayerStopReason =
   | DailyRemoteMediaPlayerEOS
   | DailyRemoteMediaPlayerPeerStopped;
 
-export interface DailyEventObjectRemoteMediaPlayerUpdate {
+export interface DailyEventObjectRemoteMediaPlayerUpdate
+  extends DailyEventObjectBase {
   action: Extract<
     DailyEvent,
     'remote-media-player-started' | 'remote-media-player-updated'
@@ -1521,70 +1558,74 @@ export interface DailyEventObjectRemoteMediaPlayerUpdate {
   remoteMediaPlayerState: DailyRemoteMediaPlayerState;
 }
 
-export interface DailyEventObjectRemoteMediaPlayerStopped {
+export interface DailyEventObjectRemoteMediaPlayerStopped
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'remote-media-player-stopped'>;
   session_id: string;
   updatedBy: string;
   reason: DailyRemoteMediaPlayerStopReason;
 }
 
-export interface DailyEventObjectCustomButtonClick {
+export interface DailyEventObjectCustomButtonClick
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'custom-button-click'>;
   button_id: string;
 }
 
-export interface DailyEventObjectSelectedDevicesUpdated {
+export interface DailyEventObjectSelectedDevicesUpdated
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'selected-devices-updated'>;
   devices: DailyDeviceInfos;
 }
 
-export interface DailyEventObjectSidebarViewChanged {
+export interface DailyEventObjectSidebarViewChanged
+  extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'sidebar-view-changed'>;
   view: SidebarView;
 }
 
-export interface DailyEventObjectDialinConnected {
+export interface DailyEventObjectDialinConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-connected'>;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialinError {
+export interface DailyEventObjectDialinError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-error'>;
   errorMsg: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialinStopped {
+export interface DailyEventObjectDialinStopped extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-stopped'>;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialinWarning {
+export interface DailyEventObjectDialinWarning extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-warning'>;
   errorMsg: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialOutConnected {
+export interface DailyEventObjectDialOutConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-connected'>;
   sessionId?: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialOutError {
+export interface DailyEventObjectDialOutError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-error'>;
   errorMsg: string;
   sessionId?: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialOutStopped {
+export interface DailyEventObjectDialOutStopped extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-stopped'>;
   sessionId?: string;
   actionTraceId?: string;
 }
 
-export interface DailyEventObjectDialOutWarning {
+export interface DailyEventObjectDialOutWarning extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-warning'>;
   errorMsg: string;
   sessionId?: string;
@@ -1594,8 +1635,6 @@ export interface DailyEventObjectDialOutWarning {
 export type DailyEventObject<T extends DailyEvent = any> =
   T extends DailyEventObjectAppMessage['action']
     ? DailyEventObjectAppMessage
-    : T extends DailyEventObjectTranscriptionMessage['action']
-    ? DailyEventObjectTranscriptionMessage
     : T extends DailyEventObjectNoPayload['action']
     ? DailyEventObjectNoPayload
     : T extends DailyEventObjectCameraError['action']
@@ -1616,6 +1655,14 @@ export type DailyEventObject<T extends DailyEvent = any> =
     ? DailyEventObjectLiveStreamingStopped
     : T extends DailyEventObjectLiveStreamingError['action']
     ? DailyEventObjectLiveStreamingError
+    : T extends DailyEventObjectTranscriptionStarted['action']
+    ? DailyEventObjectTranscriptionStarted
+    : T extends DailyEventObjectTranscriptionMessage['action']
+    ? DailyEventObjectTranscriptionMessage
+    : T extends DailyEventObjectTranscriptionStopped['action']
+    ? DailyEventObjectTranscriptionStopped
+    : T extends DailyEventObjectTranscriptionError['action']
+    ? DailyEventObjectTranscriptionError
     : T extends DailyEventObjectParticipant['action']
     ? DailyEventObjectParticipant
     : T extends DailyEventObjectParticipantLeft['action']
@@ -1700,6 +1747,8 @@ export type DailyEventObject<T extends DailyEvent = any> =
     ? DailyEventObjectLocalAudioLevel
     : T extends DailyEventObjectRemoteParticipantsAudioLevel['action']
     ? DailyEventObjectRemoteParticipantsAudioLevel
+    : T extends DailyEvent
+    ? DailyEventObjectBase
     : any;
 
 export interface DailyCallFactory {
@@ -1964,6 +2013,7 @@ export interface DailySipReferOptions {
 }
 
 export interface DailyCall {
+  callClientId: string;
   iframe(): HTMLIFrameElement | null;
   join(properties?: DailyCallOptions): Promise<DailyParticipantsObject | void>;
   leave(): Promise<void>;
