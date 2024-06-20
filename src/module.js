@@ -1134,17 +1134,14 @@ export default class DailyIframe extends EventEmitter {
     }
 
     // This ID is used internally to coordinate communication between this
-    // Daily instance and the call machine. It currently seeps into many of
-    // the externally facing daily-js events but should have no external use.
-    // TODO: Remove this id from external daily-js events and rename to
-    //       _callClientId
-    this._callFrameId = randomStringId();
-    window._daily.instances[this._callFrameId] = {};
+    // Daily instance and the call machine.
+    this._callClientId = randomStringId();
+    window._daily.instances[this._callClientId] = {};
 
     // This is how we share tracks across the "wire" to the call bundle since
     // tracks can't be JSONified for postMessage.
     this._sharedTracks = {};
-    window._daily.instances[this._callFrameId].tracks = this._sharedTracks;
+    window._daily.instances[this._callClientId].tracks = this._sharedTracks;
 
     properties.dailyJsVersion = DailyIframe.version();
     this._iframe = iframeish;
@@ -1233,7 +1230,7 @@ export default class DailyIframe extends EventEmitter {
     }
 
     this._callObjectLoader = this._callObjectMode
-      ? new CallObjectLoader(this._callFrameId)
+      ? new CallObjectLoader(this._callClientId)
       : null;
     this._callState = DAILY_STATE_NEW; // only update via updateIsPreparingToJoin() or _updateCallState()
     this._isPreparingToJoin = false; // only update via _updateCallState()
@@ -1338,7 +1335,7 @@ export default class DailyIframe extends EventEmitter {
 
     this._messageChannel.addListenerForMessagesFromCallMachine(
       this.handleMessageFromCallMachine,
-      this._callFrameId,
+      this._callClientId,
       this
     );
   }
@@ -1394,11 +1391,11 @@ export default class DailyIframe extends EventEmitter {
 
     _callInstance = undefined;
     window?._daily?.instances &&
-      delete window._daily.instances[this._callFrameId];
+      delete window._daily.instances[this._callClientId];
     if (this.strictMode) {
       // we set this to undefined in strictMode so that all calls to
       // the underlying channel's sendMessageToCallMachine will fail
-      this._callFrameId = undefined;
+      this._callClientId = undefined;
     }
   }
 
@@ -2001,7 +1998,7 @@ export default class DailyIframe extends EventEmitter {
       const k = (msg) => {
         delete msg.action;
         delete msg.callbackStamp;
-        delete msg.callFrameId;
+        delete msg.callClientId;
         resolve(msg);
       };
       this.sendMessageToCallMachine(
@@ -2084,7 +2081,7 @@ export default class DailyIframe extends EventEmitter {
       const k = (msg) => {
         delete msg.action;
         delete msg.callbackStamp;
-        delete msg.callFrameId;
+        delete msg.callClientId;
         resolve(msg);
       };
       try {
@@ -2242,11 +2239,11 @@ export default class DailyIframe extends EventEmitter {
           action: DAILY_METHOD_START_CAMERA,
           properties: makeSafeForPostMessage(
             this.properties,
-            this._callFrameId
+            this._callClientId
           ),
           preloadCache: makeSafeForPostMessage(
             this._preloadCache,
-            this._callFrameId
+            this._callClientId
           ),
         },
         k
@@ -2631,11 +2628,11 @@ export default class DailyIframe extends EventEmitter {
           action: DAILY_METHOD_PREAUTH,
           properties: makeSafeForPostMessage(
             this.properties,
-            this._callFrameId
+            this._callClientId
           ),
           preloadCache: makeSafeForPostMessage(
             this._preloadCache,
-            this._callFrameId
+            this._callClientId
           ),
         },
         k
@@ -2842,10 +2839,10 @@ export default class DailyIframe extends EventEmitter {
 
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_JOIN,
-      properties: makeSafeForPostMessage(this.properties, this._callFrameId),
+      properties: makeSafeForPostMessage(this.properties, this._callClientId),
       preloadCache: makeSafeForPostMessage(
         this._preloadCache,
-        this._callFrameId
+        this._callClientId
       ),
     });
     return new Promise((resolve, reject) => {
@@ -4421,7 +4418,7 @@ stopTestPeerToPeerCallQuality() instead`);
     // handle case of url with query string and without
     let props = {
         ...this.properties,
-        emb: this._callFrameId,
+        emb: this._callClientId,
         embHref: encodeURIComponent(window.location.href),
         proxy: this.properties.dailyConfig?.proxyUrl
           ? encodeURIComponent(this.properties.dailyConfig?.proxyUrl)
@@ -4469,7 +4466,7 @@ stopTestPeerToPeerCallQuality() instead`);
       message,
       callback,
       this._iframe,
-      this._callFrameId
+      this._callClientId
     );
   }
 
@@ -4484,14 +4481,14 @@ stopTestPeerToPeerCallQuality() instead`);
     this._messageChannel.forwardPackagedMessageToCallMachine(
       msg,
       this._iframe,
-      this._callFrameId
+      this._callClientId
     );
   }
 
   addListenerForPackagedMessagesFromCallMachine(listener) {
     return this._messageChannel.addListenerForPackagedMessagesFromCallMachine(
       listener,
-      this._callFrameId
+      this._callClientId
     );
   }
 
@@ -4655,7 +4652,7 @@ stopTestPeerToPeerCallQuality() instead`);
         if (msg.meetingSession) {
           this._meetingSessionSummary = msg.meetingSession;
           try {
-            delete msg.callFrameId;
+            delete msg.callClientId;
             this.emit(msg.action, msg);
             // send deprecated backwards-compatible event
             const msg_cp = {
@@ -5227,7 +5224,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (!isReactNative()) {
       return;
     }
-    this.nativeUtils().setKeepDeviceAwake(keepAwake, this._callFrameId);
+    this.nativeUtils().setKeepDeviceAwake(keepAwake, this._callClientId);
   }
 
   updateDeviceAudioMode(useInCallAudioMode) {
@@ -5268,7 +5265,7 @@ stopTestPeerToPeerCallQuality() instead`);
       title,
       subtitle,
       iconName,
-      this._callFrameId
+      this._callClientId
     );
   }
 
@@ -5442,7 +5439,7 @@ stopTestPeerToPeerCallQuality() instead`);
         logMsg,
         null,
         this._iframe,
-        this._callFrameId
+        this._callClientId
       );
     } else if (_callInstance && !_callInstance.needsLoad()) {
       const logMsg = {
@@ -5562,7 +5559,7 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   _callMachine() {
-    return window._daily?.instances?.[this._callFrameId]?.callMachine;
+    return window._daily?.instances?.[this._callClientId]?.callMachine;
   }
 }
 
@@ -5584,7 +5581,7 @@ function resetPreloadCache(c) {
   // cache that should not persist
 }
 
-function makeSafeForPostMessage(props, callFrameId) {
+function makeSafeForPostMessage(props, callClientId) {
   const safe = {};
   for (let p in props) {
     if (props[p] instanceof MediaStreamTrack) {
@@ -5596,16 +5593,16 @@ function makeSafeForPostMessage(props, callFrameId) {
     } else if (p === 'dailyConfig') {
       if (props[p].modifyLocalSdpHook) {
         let customCallbacks =
-          window._daily.instances[callFrameId].customCallbacks || {};
+          window._daily.instances[callClientId].customCallbacks || {};
         customCallbacks.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
-        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
+        window._daily.instances[callClientId].customCallbacks = customCallbacks;
         delete props[p].modifyLocalSdpHook;
       }
       if (props[p].modifyRemoteSdpHook) {
         let customCallbacks =
-          window._daily.instances[callFrameId].customCallbacks || {};
+          window._daily.instances[callClientId].customCallbacks || {};
         customCallbacks.modifyRemoteSdpHook = props[p].modifyRemoteSdpHook;
-        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
+        window._daily.instances[callClientId].customCallbacks = customCallbacks;
         delete props[p].modifyRemoteSdpHook;
       }
       safe[p] = props[p];

@@ -13,14 +13,16 @@ export default class WebMessageChannel extends ScriptMessageChannel {
     this._messageCallbacks = {};
   }
 
-  addListenerForMessagesFromCallMachine(listener, callFrameId, thisValue) {
+  addListenerForMessagesFromCallMachine(listener, callClientId, thisValue) {
     const wrappedListener = (evt) => {
       if (
         evt.data &&
         evt.data.what === 'iframe-call-message' &&
-        // make callFrameId addressing backwards-compatible with
+        // make callClientId addressing backwards-compatible with
         // old versions of the library, which didn't have it
-        (evt.data.callFrameId ? evt.data.callFrameId === callFrameId : true) &&
+        (evt.data.callClientId
+          ? evt.data.callClientId === callClientId
+          : true) &&
         (evt.data.from ? evt.data.from !== 'module' : true)
       ) {
         const msg = { ...evt.data };
@@ -46,7 +48,7 @@ export default class WebMessageChannel extends ScriptMessageChannel {
     window.addEventListener('message', wrappedListener);
   }
 
-  addListenerForMessagesFromDailyJs(listener, callFrameId, thisValue) {
+  addListenerForMessagesFromDailyJs(listener, callClientId, thisValue) {
     const wrappedListener = (evt) => {
       if (
         !(
@@ -54,8 +56,8 @@ export default class WebMessageChannel extends ScriptMessageChannel {
           evt.data.what === IFRAME_MESSAGE_MARKER &&
           evt.data.action &&
           (!evt.data.from || evt.data.from === 'module') &&
-          (evt.data.callFrameId && callFrameId
-            ? evt.data.callFrameId === callFrameId
+          (evt.data.callClientId && callClientId
+            ? evt.data.callClientId === callClientId
             : true)
         )
       ) {
@@ -69,16 +71,16 @@ export default class WebMessageChannel extends ScriptMessageChannel {
     window.addEventListener('message', wrappedListener);
   }
 
-  sendMessageToCallMachine(message, callback, iframe, callFrameId) {
-    if (!callFrameId) {
+  sendMessageToCallMachine(message, callback, iframe, callClientId) {
+    if (!callClientId) {
       throw new Error(
-        'undefined callFrameId. Are you trying to use a DailyCall instance previously destroyed?'
+        'undefined callClientId. Are you trying to use a DailyCall instance previously destroyed?'
       );
     }
     let msg = { ...message };
     msg.what = IFRAME_MESSAGE_MARKER;
     msg.from = 'module';
-    msg.callFrameId = callFrameId;
+    msg.callClientId = callClientId;
     if (callback) {
       let stamp = randomStringId();
       this._messageCallbacks[stamp] = callback;
@@ -99,9 +101,9 @@ export default class WebMessageChannel extends ScriptMessageChannel {
     }
   }
 
-  sendMessageToDailyJs(message, callFrameId) {
+  sendMessageToDailyJs(message, callClientId) {
     message.what = IFRAME_MESSAGE_MARKER;
-    message.callFrameId = callFrameId;
+    message.callClientId = callClientId;
     message.from = 'embedded';
     // console.log('[WebMessageChannel] sending message to daily-js', message);
     // Note: this message is only meant for the daily-js running in the same
@@ -120,10 +122,10 @@ export default class WebMessageChannel extends ScriptMessageChannel {
   }
 
   // Expects msg to already be packaged with all internal metadata fields
-  // (what, from, callFrameId, etc.)
+  // (what, from, callClientId, etc.)
   forwardPackagedMessageToCallMachine(msg, iframe, newCallFrameId) {
     const newMsg = { ...msg };
-    newMsg.callFrameId = newCallFrameId;
+    newMsg.callClientId = newCallFrameId;
     const w = iframe ? iframe.contentWindow : window;
     const targetOrigin = this._callMachineTargetOrigin(iframe);
     if (targetOrigin) {
@@ -141,8 +143,8 @@ export default class WebMessageChannel extends ScriptMessageChannel {
   }
 
   // Listener will be given packaged message with all internal metadata fields
-  // (what, from, callFrameId, etc.)
-  addListenerForPackagedMessagesFromCallMachine(listener, callFrameId) {
+  // (what, from, callClientId, etc.)
+  addListenerForPackagedMessagesFromCallMachine(listener, callClientId) {
     const wrappedListener = (evt) => {
       // console.log(
       //   '[WebMessageChannel] received packaged call machine message',
@@ -151,9 +153,11 @@ export default class WebMessageChannel extends ScriptMessageChannel {
       if (
         evt.data &&
         evt.data.what === 'iframe-call-message' &&
-        // make callFrameId addressing backwards-compatible with
+        // make callClientId addressing backwards-compatible with
         // old versions of the library, which didn't have it
-        (evt.data.callFrameId ? evt.data.callFrameId === callFrameId : true) &&
+        (evt.data.callClientId
+          ? evt.data.callClientId === callClientId
+          : true) &&
         (evt.data.from ? evt.data.from !== 'module' : true)
       ) {
         const msg = evt.data;
