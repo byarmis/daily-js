@@ -6250,9 +6250,7 @@ function validateSipCallTransfer(
   }
 
   if (useSipRefer && !toEndPoint.startsWith('sip:')) {
-    throw new Error(
-      `"toEndPoint" must be either a "sip" address or daily room url`
-    );
+    throw new Error(`"toEndPoint" must be a "sip" address`);
   }
 
   if (!(toEndPoint.startsWith('sip:') || toEndPoint.startsWith('+'))) {
