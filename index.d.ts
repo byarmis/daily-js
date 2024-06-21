@@ -371,7 +371,9 @@ export interface DailyLoadOptions extends DailyCallOptions {
 }
 
 export interface DailyFactoryOptions extends DailyCallOptions {
-  strictMode?: boolean; // only available at constructor time
+  // only available at constructor time
+  allowMultipleCallInstances?: boolean;
+  strictMode?: boolean;
 }
 
 export interface DailyMicAudioModeSettings {
@@ -1760,7 +1762,7 @@ export interface DailyCallFactory {
   ): DailyCall;
   createFrame(properties?: DailyFactoryOptions): DailyCall;
   createTransparentFrame(properties?: DailyFactoryOptions): DailyCall;
-  getCallInstance(): DailyCall | undefined;
+  getCallInstance(callClientId?: string): DailyCall | undefined;
 }
 
 export interface DailyCallStaticUtils {

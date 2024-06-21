@@ -386,10 +386,12 @@ export {
   DAILY_EVENT_NONFATAL_ERROR,
 };
 
-let _callInstance;
+/* global __sentryDSN__, __dailyJsVersion__, DailyNativeUtils */
 
-function _setCallInstance(instance) {
-  _callInstance = instance;
+const _callInstances = {};
+
+function _addCallInstance(instance) {
+  _callInstances[instance.callClientId] = instance;
 }
 
 // Audio modes for React Native: whether we should configure audio for video
@@ -765,6 +767,7 @@ const FRAME_PROPS = {
     queryString: 'proxy',
   },
   strictMode: true,
+  allowMultipleCallInstances: true,
 };
 
 // todo: more validation?
@@ -1109,8 +1112,14 @@ export default class DailyIframe extends EventEmitter {
     return DailyIframe.wrap(iframeEl, properties);
   }
 
-  static getCallInstance() {
-    return _callInstance;
+  static getCallInstance(callClientId = undefined) {
+    if (callClientId) return _callInstances[callClientId];
+    // if an id is not provided, return the first one.
+    // in a single call instance application there should
+    // only ever be one and if there are somehow more than
+    // one (strict mode is off) then we assume the first
+    // one is still the primary.
+    return Object.values(_callInstances)[0];
   }
 
   constructor(iframeish, properties = {}) {
@@ -1119,14 +1128,25 @@ export default class DailyIframe extends EventEmitter {
       typeof properties.strictMode !== 'undefined'
         ? properties.strictMode
         : true;
-    if (_callInstance) {
+    this.allowMultipleCallInstances =
+      properties.allowMultipleCallInstances ?? false;
+    if (Object.keys(_callInstances).length) {
+      // it will be good to continue to log when multiple call instances are
+      // in use :)
       this._logDuplicateInstanceAttempt();
-      if (this.strictMode) {
-        throw new Error('Duplicate DailyIframe instances are not allowed');
+      if (!this.allowMultipleCallInstances) {
+        if (this.strictMode) {
+          throw new Error('Duplicate DailyIframe instances are not allowed');
+        } else {
+          console.warn(
+            'Using strictMode: false to allow multiple call ' +
+              'instances is now deprecated. Set `allowMultipleCallInstances: true`'
+          );
+        }
       }
-    } else {
-      _setCallInstance(this);
     }
+
+    _addCallInstance(this);
 
     // initialize globals if this is the first call instance ever on this window
     if (!window._daily) {
@@ -1375,7 +1395,7 @@ export default class DailyIframe extends EventEmitter {
     // fire call-instance-destroyed event here
     this.emitDailyJSEvent({ action: 'call-instance-destroyed' });
 
-    _callInstance = undefined;
+    delete _callInstances[this.callClientId];
     window?._daily?.instances &&
       delete window._daily.instances[this.callClientId];
     if (this.strictMode) {
@@ -2273,6 +2293,7 @@ export default class DailyIframe extends EventEmitter {
     }
   }
 
+  // eslint-disable-next-line no-undef
   startCustomTrack(properties = { track, mode, trackName }) {
     methodNotSupportedInReactNative();
     // Validate meeting state: custom tracks are only available
@@ -3057,6 +3078,9 @@ export default class DailyIframe extends EventEmitter {
         }
       }
       // maxBitrate is sometimes mandatory
+      // TODO: Update to `hasOwn` once minimum supported versions support it
+      // https://caniuse.com/?search=hasOwn
+      // eslint-disable-next-line no-prototype-builtins
       if (isMaxBitrateMandatory && !layer.hasOwnProperty('maxBitrate')) {
         throw new Error(`maxBitrate is not specified`);
       }
@@ -3709,7 +3733,7 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   getCpuLoadStats() {
-    return new Promise((resolve, _) => {
+    return new Promise((resolve) => {
       if (this._callState !== DAILY_STATE_JOINED) {
         resolve({
           cpuLoadState: undefined,
@@ -4612,6 +4636,7 @@ stopTestPeerToPeerCallQuality() instead`);
           this._loadedCallback(msg.errorMsg);
           this._loadedCallback = null;
         }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         let { preserveIframe, ...event } = msg;
         if (event?.error?.details) {
           event.error.details = JSON.parse(event.error.details);
@@ -4803,7 +4828,7 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_SIDEBAR_VIEW_CHANGED:
         this.emitDailyJSEvent(msg);
         break;
-      case DAILY_EVENT_MEETING_SESSION_STATE_UPDATED:
+      case DAILY_EVENT_MEETING_SESSION_STATE_UPDATED: {
         const topologyChanged =
           this._meetingSessionState.topology !==
           (msg.meetingSessionState && msg.meetingSessionState.topology);
@@ -4822,6 +4847,7 @@ stopTestPeerToPeerCallQuality() instead`);
           this.emitDailyJSEvent(msg);
         }
         break;
+      }
       case DAILY_EVENT_LOCAL_SCREEN_SHARE_STARTED:
         this._isScreenSharing = true;
         this.emitDailyJSEvent(msg);
@@ -4864,7 +4890,7 @@ stopTestPeerToPeerCallQuality() instead`);
         this.emitDailyJSEvent(msg);
         break;
       case DAILY_REQUEST_FULLSCREEN:
-        this.requestFullscreen();
+        void this.requestFullscreen();
         break;
       case DAILY_EXIT_FULLSCREEN:
         this.exitFullscreen();
@@ -5289,6 +5315,7 @@ stopTestPeerToPeerCallQuality() instead`);
   _logUseAfterDestroy() {
     // if we have any live call instance, send the log over the wire to land in l&t
     // any l&t attached to this window. it don't matter which :)
+    const _firstCallInstance = Object.values(_callInstances)[0];
     if (!this.needsLoad()) {
       // once strictMode is always true, this block can go away because it
       // should be impossible for needsLoad to be false
@@ -5303,13 +5330,13 @@ stopTestPeerToPeerCallQuality() instead`);
         this._iframe,
         this.callClientId
       );
-    } else if (_callInstance && !_callInstance.needsLoad()) {
+    } else if (_firstCallInstance && !_firstCallInstance.needsLoad()) {
       const logMsg = {
         action: DAILY_METHOD_TRANSMIT_LOG,
         level: 'error',
         code: this.strictMode ? 9995 : 9997,
       };
-      _callInstance.sendMessageToCallMachine(logMsg);
+      _firstCallInstance.sendMessageToCallMachine(logMsg);
     } else if (!this.strictMode) {
       const errMsg =
         'You are are attempting to use a call instance that was previously ' +
@@ -5321,8 +5348,9 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   _logDuplicateInstanceAttempt() {
-    const callInst = _callInstance._callMachineInitialized
-      ? _callInstance
+    const _firstCallInstance = Object.values(_callInstances)[0];
+    const callInst = _firstCallInstance._callMachineInitialized
+      ? _firstCallInstance
       : this._callMachineInitialized
       ? this
       : undefined;
@@ -5330,14 +5358,14 @@ stopTestPeerToPeerCallQuality() instead`);
       callInst.sendMessageToCallMachine({
         action: DAILY_METHOD_TRANSMIT_LOG,
         level: 'warn',
-        code: this.strictMode ? 9990 : 9992,
+        code: this.allowMultipleCallInstances ? 9993 : 9992,
       });
       this._delayDuplicateInstanceLog = false;
     } else {
       // callMachineInitialized most likely will only fire once and
       // it's unclear which call machine will handle it.
       this._delayDuplicateInstanceLog = true;
-      _callInstance._delayDuplicateInstanceLog = true;
+      _firstCallInstance._delayDuplicateInstanceLog = true;
     }
   }
 
@@ -5438,7 +5466,7 @@ function initializePreloadCache() {
   };
 }
 
-function resetPreloadCache(c) {
+function resetPreloadCache() {
   // don't need to do anything, until we add stuff to the preload
   // cache that should not persist
 }
