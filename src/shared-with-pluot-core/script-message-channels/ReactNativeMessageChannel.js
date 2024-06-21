@@ -21,7 +21,7 @@ export default class ReactNativeMessageChannel extends ScriptMessageChannel {
     this._messageCallbacks = {};
   }
 
-  addListenerForMessagesFromCallMachine(listener, callFrameId, thisValue) {
+  addListenerForMessagesFromCallMachine(listener, callClientId, thisValue) {
     this._addListener(
       listener,
       global.callMachineToDailyJsEmitter,
@@ -30,7 +30,7 @@ export default class ReactNativeMessageChannel extends ScriptMessageChannel {
     );
   }
 
-  addListenerForMessagesFromDailyJs(listener, callFrameId, thisValue) {
+  addListenerForMessagesFromDailyJs(listener, callClientId, thisValue) {
     this._addListener(
       listener,
       global.dailyJsToCallMachineEmitter,
