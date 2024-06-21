@@ -9,7 +9,7 @@ Please check our [our documentation site](https://docs.daily.co/) to get started
 
 ## `strictMode`: false will no longer allow multiple call instances
 
-Today, you can circumvent throwing an `Error` on creation of a Daily instance by setting `strictMode: false` in constructor parameters. With the introduction of proper support for multiple instances, this is replaced with the opt-in parameter, `allowMultipleCallInstances`. So in a future release, if your application needs to use multiple call instances simultaneously, you must set this new parameter to `true`, otherwise multiple instances will not be allowed an `Error` will be thrown (regardless of `strictMode`).
+Today, you can circumvent throwing an `Error` on creation of a second (or nth) Daily instance by setting `strictMode: false` in the constructor parameters. With the introduction of proper support for multiple instances, this is replaced with the opt-in parameter, `allowMultipleCallInstances`. So in a future release, if your application needs to use multiple call instances simultaneously, you must set this new parameter to `true`, otherwise multiple instances will not be allowed and an `Error` will be thrown (regardless of `strictMode`).
 
 While we will technically support multiple instances and the fear of bugs when doing so goes away, the majority of use cases only requires one instance and having multiple is likely accidental and will still cause issues. It's for this reason we default to throwing an `Error` in the hopes of avoiding footguns.
 
