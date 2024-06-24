@@ -1146,8 +1146,6 @@ export default class DailyIframe extends EventEmitter {
       }
     }
 
-    _addCallInstance(this);
-
     // initialize globals if this is the first call instance ever on this window
     if (!window._daily) {
       window._daily = { pendings: [], instances: {} };
@@ -1156,6 +1154,7 @@ export default class DailyIframe extends EventEmitter {
     // This ID is used internally to coordinate communication between this
     // Daily instance and the call machine.
     this.callClientId = randomStringId();
+    _addCallInstance(this);
     window._daily.instances[this.callClientId] = {};
 
     // This is how we share tracks across the "wire" to the call bundle since
