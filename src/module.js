@@ -868,7 +868,11 @@ const PARTICIPANT_PROPS = {
             }
             break;
           case 'canSend':
-            if (permission instanceof Set || permission instanceof Array) {
+            if (
+              permission instanceof Set ||
+              permission instanceof Array ||
+              Array.isArray(permission)
+            ) {
               const knownMediaTypes = [
                 'video',
                 'audio',
@@ -886,12 +890,16 @@ const PARTICIPANT_PROPS = {
               return false;
             }
             // convert Array to Set if needed
-            if (permission instanceof Array) {
+            if (permission instanceof Array || Array.isArray(permission)) {
               permissionsUpdate['canSend'] = new Set(permission);
             }
             break;
           case 'canAdmin':
-            if (permission instanceof Set || permission instanceof Array) {
+            if (
+              permission instanceof Set ||
+              permission instanceof Array ||
+              Array.isArray(permission)
+            ) {
               const knownAdminTypes = [
                 'participants',
                 'streaming',
@@ -906,7 +914,7 @@ const PARTICIPANT_PROPS = {
               return false;
             }
             // convert Array to Set if needed
-            if (permission instanceof Array) {
+            if (permission instanceof Array || Array.isArray(permission)) {
               permissionsUpdate['canAdmin'] = new Set(permission);
             }
             break;
@@ -3039,7 +3047,7 @@ export default class DailyIframe extends EventEmitter {
   ) {
     if (!encodings) return;
     // validate simulcastEncodings
-    if (!(encodings instanceof Array)) {
+    if (!(encodings instanceof Array) && !Array.isArray(encodings)) {
       throw new Error(`encodings must be an Array`);
     }
     // max 3 layers
