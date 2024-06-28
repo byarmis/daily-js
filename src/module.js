@@ -2207,8 +2207,6 @@ export default class DailyIframe extends EventEmitter {
       'Did you mean to use setLocalAudio() and/or setLocalVideo() instead?'
     );
 
-    methodNotSupportedDuringTestCall(this._testCallInProgress, 'startCamera()');
-
     if (this.needsLoad()) {
       try {
         await this.load(properties);
@@ -2602,7 +2600,6 @@ export default class DailyIframe extends EventEmitter {
       this._isPreparingToJoin,
       'preAuth()'
     );
-    methodNotSupportedDuringTestCall(this._testCallInProgress, 'preAuth()');
 
     // Load call machine bundle, if needed.
     if (this.needsLoad()) {
@@ -2744,7 +2741,9 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async join(properties = {}) {
-    methodNotSupportedDuringTestCall(this._testCallInProgress, 'join()');
+    if (this._testCallInProgress) {
+      this.stopTestCallQuality();
+    }
 
     let newCss = false;
     if (this.needsLoad()) {
@@ -2875,7 +2874,9 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async leave() {
-    methodNotSupportedDuringTestCall(this._testCallInProgress, `leave()`);
+    if (this._testCallInProgress) {
+      this.stopTestCallQuality();
+    }
     return new Promise((resolve) => {
       if (
         this._callState === DAILY_STATE_LEFT ||
@@ -3538,17 +3539,18 @@ export default class DailyIframe extends EventEmitter {
     return true;
   }
 
-  async testCallQuality(args) {
-    methodNotSupportedAfterCallMachineInitialized(
+  async testCallQuality() {
+    methodRequiresInitializedCallMachine(
       this._callMachineInitialized,
+      'testCallQuality()',
+      null,
+      true
+    );
+    methodOnlySupportedBeforeJoin(
+      this._callState,
+      this._isPreparingToJoin,
       'testCallQuality()'
     );
-    if (
-      args.videoTrack &&
-      !this._validateVideoTrackForNetworkTests(args.videoTrack)
-    ) {
-      throw new Error('Video track error');
-    }
 
     // it's ok to call this method when a test is already running. we
     // simply wait for the same promise and return the same results from
@@ -3560,9 +3562,6 @@ export default class DailyIframe extends EventEmitter {
       }
     };
     _maybeUpdateTestCallInProgressFlag(true);
-
-    const { videoTrack, ...callArgs } = args;
-    this._sharedTracks.videoTrackForConnectionQualityTest = videoTrack;
 
     if (this.needsLoad()) {
       try {
@@ -3614,7 +3613,6 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_TEST_CALL_QUALITY,
-          ...callArgs,
           dailyJsVersion: this.properties.dailyJsVersion,
         },
         k
@@ -5551,27 +5549,15 @@ function methodOnlySupportedBeforeJoin(
 function methodRequiresInitializedCallMachine(
   callMachineInitialized,
   methodName = 'This daily-js method',
-  moreInfo
+  moreInfo,
+  beforeJoinOnly = false
 ) {
   if (!callMachineInitialized) {
-    let msg = `${methodName} requires preAuth(), startCamera(), or join() to \
+    let msg = beforeJoinOnly
+      ? `${methodName} requires preAuth() or startCamera() to initialize call \
+state.`
+      : `${methodName} requires preAuth(), startCamera(), or join() to \
 initialize call state.`;
-    if (moreInfo) {
-      msg += ` ${moreInfo}`;
-    }
-    console.error(msg);
-    throw new Error(msg);
-  }
-}
-
-function methodNotSupportedAfterCallMachineInitialized(
-  callMachineInitialized,
-  methodName = 'This daily-js method',
-  moreInfo
-) {
-  if (callMachineInitialized) {
-    let msg = `${methodName} can not be called after preAuth(), startCamera(), \
-or join() and call state has been initialized.`;
     if (moreInfo) {
       msg += ` ${moreInfo}`;
     }
