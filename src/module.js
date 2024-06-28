@@ -3540,6 +3540,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async testCallQuality() {
+    methodOnlySupportedInCallObject(this._callObjectMode, 'testCallQuality()');
     methodRequiresInitializedCallMachine(
       this._callMachineInitialized,
       'testCallQuality()',
@@ -5299,22 +5300,6 @@ stopTestPeerToPeerCallQuality() instead`);
     const str = 'hello, world.';
     console.log(str);
     return str;
-  }
-
-  _logCallQualityTestResults(results) {
-    if (this._callMachineInitialized) {
-      const logMsg = {
-        action: DAILY_METHOD_TRANSMIT_LOG,
-        level: 'info',
-        code: 1012,
-        results,
-      };
-      this.sendMessageToCallMachine(logMsg);
-    } else {
-      console.warn(
-        '_logCallQualityTestResults() must be called after daily initialization'
-      );
-    }
   }
 
   _logUseAfterDestroy() {

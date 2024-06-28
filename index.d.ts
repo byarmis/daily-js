@@ -2168,9 +2168,7 @@ export interface DailyCall {
     videoTrack: MediaStreamTrack
   ): Promise<DailyNetworkConnectivityTestStats>;
   abortTestNetworkConnectivity(): void;
-  testCallQuality(options: {
-    videoTrack?: MediaStreamTrack;
-  }): Promise<DailyCallQualityTestResults>;
+  testCallQuality(): Promise<DailyCallQualityTestResults>;
   stopTestCallQuality(): void;
   testPeerToPeerCallQuality(options: {
     videoTrack: MediaStreamTrack;
