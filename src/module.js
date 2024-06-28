@@ -3540,6 +3540,7 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async testCallQuality() {
+    methodNotSupportedInReactNative();
     methodOnlySupportedInCallObject(this._callObjectMode, 'testCallQuality()');
     methodRequiresInitializedCallMachine(
       this._callMachineInitialized,
