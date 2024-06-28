@@ -50,6 +50,19 @@ export default class WebMessageChannel extends ScriptMessageChannel {
 
   addListenerForMessagesFromDailyJs(listener, callClientId, thisValue) {
     const wrappedListener = (evt) => {
+      // This listens to ALL messages so we must discern which messages
+      // are for us by making sure that the message matches the format we
+      // expect and is addressed to our same call client (callClientId matches)
+      // This listener, specifically, only wants to deal with listening
+      // messages coming from a matching daily-js call client instance. In
+      // embedded iFrame mode it, we only want messages from the inner frame.
+      // (The outer frame's messages are handled by IframeDriverMessageChannel)
+      // If the outter frame is older (daily-js < 0.67), it will store the
+      // client id as callFrameId. So it's safe to disregard any message with
+      // that key
+      // NOTE: It's tempting to change the default of the callClientId check
+      //       to false. Sure seems like it should be, but I'm too timid, so
+      //       for now just throw out any message with callFrameId.
       if (
         !(
           evt.data &&
@@ -58,7 +71,8 @@ export default class WebMessageChannel extends ScriptMessageChannel {
           (!evt.data.from || evt.data.from === 'module') &&
           (evt.data.callClientId && callClientId
             ? evt.data.callClientId === callClientId
-            : true)
+            : true) &&
+          !evt?.data?.callFrameId
         )
       ) {
         return;
@@ -123,9 +137,9 @@ export default class WebMessageChannel extends ScriptMessageChannel {
 
   // Expects msg to already be packaged with all internal metadata fields
   // (what, from, callClientId, etc.)
-  forwardPackagedMessageToCallMachine(msg, iframe, newCallFrameId) {
+  forwardPackagedMessageToCallMachine(msg, iframe, newCallClientId) {
     const newMsg = { ...msg };
-    newMsg.callClientId = newCallFrameId;
+    newMsg.callClientId = newCallClientId;
     const w = iframe ? iframe.contentWindow : window;
     const targetOrigin = this._callMachineTargetOrigin(iframe);
     if (targetOrigin) {
