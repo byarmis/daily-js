@@ -1,16 +1,16 @@
 import { isReactNative } from './shared-with-pluot-core/Environment';
 import { callObjectBundleUrl, randomStringId } from './utils';
 
-function registerPendingCallInstance(callFrameId) {
-  window._daily.pendings.push(callFrameId);
+function registerPendingCallInstance(callClientId) {
+  window._daily.pendings.push(callClientId);
 }
 
-function unregisterPendingCallInstance(callFrameId) {
+function unregisterPendingCallInstance(callClientId) {
   const pendings = window._daily?.pendings;
   if (!pendings) {
     return;
   }
-  const index = pendings.indexOf(callFrameId);
+  const index = pendings.indexOf(callClientId);
   if (index === -1) {
     return;
   }
@@ -21,12 +21,12 @@ export default class CallObjectLoader {
   /**
    * Create a new call object bundle loader.
    *
-   * @param callFrameId A string identifying this call instance, to distinguish
+   * @param callClientId A string identifying this call instance, to distinguish
    * messages going between the call instance and the call machine from others.
    */
-  constructor(callFrameId) {
+  constructor(callClientId) {
     this._currentLoad = null;
-    this._callFrameId = callFrameId;
+    this._callClientId = callClientId;
   }
 
   /**
@@ -52,12 +52,12 @@ export default class CallObjectLoader {
    */
   load(dailyConfig = {}, successCallback, failureCallback) {
     if (this.loaded) {
-      window._daily.instances[this._callFrameId].callMachine.reset();
+      window._daily.instances[this._callClientId].callMachine.reset();
       successCallback(true); // true = "this load() was a no-op"
       return;
     }
 
-    registerPendingCallInstance(this._callFrameId);
+    registerPendingCallInstance(this._callClientId);
 
     // Cancel current load, if any
     this._currentLoad && this._currentLoad.cancel();
@@ -70,7 +70,7 @@ export default class CallObjectLoader {
       },
       (error, willRetry) => {
         if (!willRetry) {
-          unregisterPendingCallInstance(this._callFrameId);
+          unregisterPendingCallInstance(this._callClientId);
         }
         failureCallback(error, willRetry);
       }
@@ -83,7 +83,7 @@ export default class CallObjectLoader {
    */
   cancel() {
     this._currentLoad && this._currentLoad.cancel();
-    unregisterPendingCallInstance(this._callFrameId);
+    unregisterPendingCallInstance(this._callClientId);
   }
 
   /**

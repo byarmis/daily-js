@@ -224,6 +224,7 @@ import {
   DAILY_METHOD_TEST_P2P_CALL_QUALITY,
   DAILY_METHOD_START_DIALOUT,
   DAILY_METHOD_SEND_DTMF,
+  DAILY_METHOD_SIP_CALL_TRANSFER,
   DAILY_METHOD_STOP_DIALOUT,
   DAILY_EVENT_DIALIN_READY,
   DAILY_EVENT_DIALIN_CONNECTED,
@@ -231,6 +232,7 @@ import {
   DAILY_EVENT_DIALIN_STOPPED,
   DAILY_EVENT_DIALIN_WARNING,
   DAILY_EVENT_DIALOUT_CONNECTED,
+  DAILY_EVENT_DIALOUT_ANSWERED,
   DAILY_EVENT_DIALOUT_ERROR,
   DAILY_EVENT_DIALOUT_STOPPED,
   DAILY_EVENT_DIALOUT_WARNING,
@@ -384,10 +386,12 @@ export {
   DAILY_EVENT_NONFATAL_ERROR,
 };
 
-let _callInstance;
+/* global __sentryDSN__, __dailyJsVersion__, DailyNativeUtils */
 
-function _setCallInstance(instance) {
-  _callInstance = instance;
+const _callInstances = {};
+
+function _addCallInstance(instance) {
+  _callInstances[instance.callClientId] = instance;
 }
 
 // Audio modes for React Native: whether we should configure audio for video
@@ -763,6 +767,7 @@ const FRAME_PROPS = {
     queryString: 'proxy',
   },
   strictMode: true,
+  allowMultipleCallInstances: true,
 };
 
 // todo: more validation?
@@ -863,7 +868,11 @@ const PARTICIPANT_PROPS = {
             }
             break;
           case 'canSend':
-            if (permission instanceof Set || permission instanceof Array) {
+            if (
+              permission instanceof Set ||
+              permission instanceof Array ||
+              Array.isArray(permission)
+            ) {
               const knownMediaTypes = [
                 'video',
                 'audio',
@@ -881,12 +890,16 @@ const PARTICIPANT_PROPS = {
               return false;
             }
             // convert Array to Set if needed
-            if (permission instanceof Array) {
+            if (permission instanceof Array || Array.isArray(permission)) {
               permissionsUpdate['canSend'] = new Set(permission);
             }
             break;
           case 'canAdmin':
-            if (permission instanceof Set || permission instanceof Array) {
+            if (
+              permission instanceof Set ||
+              permission instanceof Array ||
+              Array.isArray(permission)
+            ) {
               const knownAdminTypes = [
                 'participants',
                 'streaming',
@@ -901,7 +914,7 @@ const PARTICIPANT_PROPS = {
               return false;
             }
             // convert Array to Set if needed
-            if (permission instanceof Array) {
+            if (permission instanceof Array || Array.isArray(permission)) {
               permissionsUpdate['canAdmin'] = new Set(permission);
             }
             break;
@@ -1107,8 +1120,14 @@ export default class DailyIframe extends EventEmitter {
     return DailyIframe.wrap(iframeEl, properties);
   }
 
-  static getCallInstance() {
-    return _callInstance;
+  static getCallInstance(callClientId = undefined) {
+    if (callClientId) return _callInstances[callClientId];
+    // if an id is not provided, return the first one.
+    // in a single call instance application there should
+    // only ever be one and if there are somehow more than
+    // one (strict mode is off) then we assume the first
+    // one is still the primary.
+    return Object.values(_callInstances)[0];
   }
 
   constructor(iframeish, properties = {}) {
@@ -1117,13 +1136,22 @@ export default class DailyIframe extends EventEmitter {
       typeof properties.strictMode !== 'undefined'
         ? properties.strictMode
         : true;
-    if (_callInstance) {
+    this.allowMultipleCallInstances =
+      properties.allowMultipleCallInstances ?? false;
+    if (Object.keys(_callInstances).length) {
+      // it will be good to continue to log when multiple call instances are
+      // in use :)
       this._logDuplicateInstanceAttempt();
-      if (this.strictMode) {
-        throw new Error('Duplicate DailyIframe instances are not allowed');
+      if (!this.allowMultipleCallInstances) {
+        if (this.strictMode) {
+          throw new Error('Duplicate DailyIframe instances are not allowed');
+        } else {
+          console.warn(
+            'Using strictMode: false to allow multiple call ' +
+              'instances is now deprecated. Set `allowMultipleCallInstances: true`'
+          );
+        }
       }
-    } else {
-      _setCallInstance(this);
     }
 
     // initialize globals if this is the first call instance ever on this window
@@ -1132,17 +1160,15 @@ export default class DailyIframe extends EventEmitter {
     }
 
     // This ID is used internally to coordinate communication between this
-    // Daily instance and the call machine. It currently seeps into many of
-    // the externally facing daily-js events but should have no external use.
-    // TODO: Remove this id from external daily-js events and rename to
-    //       _callClientId
-    this._callFrameId = randomStringId();
-    window._daily.instances[this._callFrameId] = {};
+    // Daily instance and the call machine.
+    this.callClientId = randomStringId();
+    _addCallInstance(this);
+    window._daily.instances[this.callClientId] = {};
 
     // This is how we share tracks across the "wire" to the call bundle since
     // tracks can't be JSONified for postMessage.
     this._sharedTracks = {};
-    window._daily.instances[this._callFrameId].tracks = this._sharedTracks;
+    window._daily.instances[this.callClientId].tracks = this._sharedTracks;
 
     properties.dailyJsVersion = DailyIframe.version();
     this._iframe = iframeish;
@@ -1231,7 +1257,7 @@ export default class DailyIframe extends EventEmitter {
     }
 
     this._callObjectLoader = this._callObjectMode
-      ? new CallObjectLoader(this._callFrameId)
+      ? new CallObjectLoader(this.callClientId)
       : null;
     this._callState = DAILY_STATE_NEW; // only update via updateIsPreparingToJoin() or _updateCallState()
     this._isPreparingToJoin = false; // only update via _updateCallState()
@@ -1263,14 +1289,10 @@ export default class DailyIframe extends EventEmitter {
         // chrome (not safari)
         this._iframe.addEventListener('fullscreenchange', () => {
           if (document.fullscreenElement === this._iframe) {
-            this.emit(DAILY_EVENT_FULLSCREEN, {
-              action: DAILY_EVENT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_FULLSCREEN });
             this.sendMessageToCallMachine({ action: DAILY_EVENT_FULLSCREEN });
           } else {
-            this.emit(DAILY_EVENT_EXIT_FULLSCREEN, {
-              action: DAILY_EVENT_EXIT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_EXIT_FULLSCREEN });
             this.sendMessageToCallMachine({
               action: DAILY_EVENT_EXIT_FULLSCREEN,
             });
@@ -1280,14 +1302,10 @@ export default class DailyIframe extends EventEmitter {
         // safari
         this._iframe.addEventListener('webkitfullscreenchange', () => {
           if (document.webkitFullscreenElement === this._iframe) {
-            this.emit(DAILY_EVENT_FULLSCREEN, {
-              action: DAILY_EVENT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_FULLSCREEN });
             this.sendMessageToCallMachine({ action: DAILY_EVENT_FULLSCREEN });
           } else {
-            this.emit(DAILY_EVENT_EXIT_FULLSCREEN, {
-              action: DAILY_EVENT_EXIT_FULLSCREEN,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_EXIT_FULLSCREEN });
             this.sendMessageToCallMachine({
               action: DAILY_EVENT_EXIT_FULLSCREEN,
             });
@@ -1336,7 +1354,7 @@ export default class DailyIframe extends EventEmitter {
 
     this._messageChannel.addListenerForMessagesFromCallMachine(
       this.handleMessageFromCallMachine,
-      this._callFrameId,
+      this.callClientId,
       this
     );
   }
@@ -1382,21 +1400,15 @@ export default class DailyIframe extends EventEmitter {
 
     this._destroyed = true;
     // fire call-instance-destroyed event here
-    try {
-      this.emit('call-instance-destroyed', {
-        action: 'call-instance-destroyed',
-      });
-    } catch (e) {
-      console.log('could not emit call-instance-destroyed');
-    }
+    this.emitDailyJSEvent({ action: 'call-instance-destroyed' });
 
-    _callInstance = undefined;
+    delete _callInstances[this.callClientId];
     window?._daily?.instances &&
-      delete window._daily.instances[this._callFrameId];
+      delete window._daily.instances[this.callClientId];
     if (this.strictMode) {
       // we set this to undefined in strictMode so that all calls to
       // the underlying channel's sendMessageToCallMachine will fail
-      this._callFrameId = undefined;
+      this.callClientId = undefined;
     }
   }
 
@@ -1999,7 +2011,6 @@ export default class DailyIframe extends EventEmitter {
       const k = (msg) => {
         delete msg.action;
         delete msg.callbackStamp;
-        delete msg.callFrameId;
         resolve(msg);
       };
       this.sendMessageToCallMachine(
@@ -2082,7 +2093,6 @@ export default class DailyIframe extends EventEmitter {
       const k = (msg) => {
         delete msg.action;
         delete msg.callbackStamp;
-        delete msg.callFrameId;
         resolve(msg);
       };
       try {
@@ -2197,8 +2207,6 @@ export default class DailyIframe extends EventEmitter {
       'Did you mean to use setLocalAudio() and/or setLocalVideo() instead?'
     );
 
-    methodNotSupportedDuringTestCall(this._testCallInProgress, 'startCamera()');
-
     if (this.needsLoad()) {
       try {
         await this.load(properties);
@@ -2240,11 +2248,11 @@ export default class DailyIframe extends EventEmitter {
           action: DAILY_METHOD_START_CAMERA,
           properties: makeSafeForPostMessage(
             this.properties,
-            this._callFrameId
+            this.callClientId
           ),
           preloadCache: makeSafeForPostMessage(
             this._preloadCache,
-            this._callFrameId
+            this.callClientId
           ),
         },
         k
@@ -2290,6 +2298,7 @@ export default class DailyIframe extends EventEmitter {
     }
   }
 
+  // eslint-disable-next-line no-undef
   startCustomTrack(properties = { track, mode, trackName }) {
     methodNotSupportedInReactNative();
     // Validate meeting state: custom tracks are only available
@@ -2591,7 +2600,6 @@ export default class DailyIframe extends EventEmitter {
       this._isPreparingToJoin,
       'preAuth()'
     );
-    methodNotSupportedDuringTestCall(this._testCallInProgress, 'preAuth()');
 
     // Load call machine bundle, if needed.
     if (this.needsLoad()) {
@@ -2629,11 +2637,11 @@ export default class DailyIframe extends EventEmitter {
           action: DAILY_METHOD_PREAUTH,
           properties: makeSafeForPostMessage(
             this.properties,
-            this._callFrameId
+            this.callClientId
           ),
           preloadCache: makeSafeForPostMessage(
             this._preloadCache,
-            this._callFrameId
+            this.callClientId
           ),
         },
         k
@@ -2668,11 +2676,7 @@ export default class DailyIframe extends EventEmitter {
     }
 
     this._updateCallState(DAILY_STATE_LOADING);
-    try {
-      this.emit(DAILY_EVENT_LOADING, { action: DAILY_EVENT_LOADING });
-    } catch (e) {
-      console.log("could not emit 'loading'", e);
-    }
+    this.emitDailyJSEvent({ action: DAILY_EVENT_LOADING });
 
     if (this._callObjectMode) {
       // non-iframe, callObjectMode
@@ -2686,15 +2690,11 @@ export default class DailyIframe extends EventEmitter {
             this._updateCallState(DAILY_STATE_LOADED);
             // Only need to emit event if load was a no-op, since the loaded
             // bundle won't be emitting it if it's not executed again
-            wasNoOp &&
-              this.emit(DAILY_EVENT_LOADED, { action: DAILY_EVENT_LOADED });
+            wasNoOp && this.emitDailyJSEvent({ action: DAILY_EVENT_LOADED });
             resolve();
           },
           (error, willRetry) => {
-            this.emit(DAILY_EVENT_LOAD_ATTEMPT_FAILED, {
-              action: DAILY_EVENT_LOAD_ATTEMPT_FAILED,
-              error,
-            });
+            this.emitDailyJSEvent({ action: DAILY_EVENT_LOAD_ATTEMPT_FAILED });
             if (!willRetry) {
               this._updateCallState(DAILY_STATE_ERROR);
               this.resetMeetingDependentVars();
@@ -2712,7 +2712,7 @@ export default class DailyIframe extends EventEmitter {
                 },
               };
               this._maybeSendToSentry(dailyError);
-              this.emit(DAILY_EVENT_ERROR, dailyError);
+              this.emitDailyJSEvent(dailyError);
               reject(error.msg);
             }
           }
@@ -2741,7 +2741,9 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async join(properties = {}) {
-    methodNotSupportedDuringTestCall(this._testCallInProgress, 'join()');
+    if (this._testCallInProgress) {
+      this.stopTestCallQuality();
+    }
 
     let newCss = false;
     if (this.needsLoad()) {
@@ -2819,13 +2821,7 @@ export default class DailyIframe extends EventEmitter {
       return;
     }
     this._updateCallState(DAILY_STATE_JOINING, false);
-    try {
-      this.emit(DAILY_EVENT_JOINING_MEETING, {
-        action: DAILY_EVENT_JOINING_MEETING,
-      });
-    } catch (e) {
-      console.log("could not emit 'joining-meeting'", e);
-    }
+    this.emitDailyJSEvent({ action: DAILY_EVENT_JOINING_MEETING });
 
     // set input settings in the preload cache
     if (!this._preloadCache.inputSettings) {
@@ -2840,10 +2836,10 @@ export default class DailyIframe extends EventEmitter {
 
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_JOIN,
-      properties: makeSafeForPostMessage(this.properties, this._callFrameId),
+      properties: makeSafeForPostMessage(this.properties, this.callClientId),
       preloadCache: makeSafeForPostMessage(
         this._preloadCache,
-        this._callFrameId
+        this.callClientId
       ),
     });
     return new Promise((resolve, reject) => {
@@ -2878,7 +2874,9 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async leave() {
-    methodNotSupportedDuringTestCall(this._testCallInProgress, `leave()`);
+    if (this._testCallInProgress) {
+      this.stopTestCallQuality();
+    }
     return new Promise((resolve) => {
       if (
         this._callState === DAILY_STATE_LEFT ||
@@ -2893,11 +2891,7 @@ export default class DailyIframe extends EventEmitter {
         this._callObjectLoader.cancel();
         this._updateCallState(DAILY_STATE_LEFT);
         this.resetMeetingDependentVars();
-        try {
-          this.emit(DAILY_STATE_LEFT, { action: DAILY_STATE_LEFT });
-        } catch (e) {
-          console.log("could not emit 'left-meeting'", e);
-        }
+        this.emitDailyJSEvent({ action: DAILY_STATE_LEFT });
         resolve();
       } else {
         this._resolveLeave = resolve;
@@ -2928,7 +2922,7 @@ export default class DailyIframe extends EventEmitter {
       const nativeUtils = this.nativeUtils();
       const isScreenBeingCaptured = await nativeUtils.isScreenBeingCaptured();
       if (isScreenBeingCaptured) {
-        this.emit(DAILY_EVENT_NONFATAL_ERROR, {
+        this.emitDailyJSEvent({
           action: DAILY_EVENT_NONFATAL_ERROR,
           type: DAILY_SCREEN_SHARE_ERROR_TYPE,
           errorMsg:
@@ -3054,7 +3048,7 @@ export default class DailyIframe extends EventEmitter {
   ) {
     if (!encodings) return;
     // validate simulcastEncodings
-    if (!(encodings instanceof Array)) {
+    if (!(encodings instanceof Array) && !Array.isArray(encodings)) {
       throw new Error(`encodings must be an Array`);
     }
     // max 3 layers
@@ -3092,6 +3086,9 @@ export default class DailyIframe extends EventEmitter {
         }
       }
       // maxBitrate is sometimes mandatory
+      // TODO: Update to `hasOwn` once minimum supported versions support it
+      // https://caniuse.com/?search=hasOwn
+      // eslint-disable-next-line no-prototype-builtins
       if (isMaxBitrateMandatory && !layer.hasOwnProperty('maxBitrate')) {
         throw new Error(`maxBitrate is not specified`);
       }
@@ -3395,6 +3392,60 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
+  async sipCallTransfer(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'sipCallTransfer()');
+    if (!args) {
+      throw new Error(`sipCallTransfer() requires a sessionId and toEndPoint`);
+    }
+    args.useSipRefer = false;
+    validateSipCallTransfer(args, 'sipCallTransfer');
+
+    return new Promise((resolve, reject) => {
+      const k = (msg) => {
+        if (msg.error) {
+          reject(msg.error);
+        } else {
+          resolve(msg);
+        }
+      };
+
+      this.sendMessageToCallMachine(
+        {
+          action: DAILY_METHOD_SIP_CALL_TRANSFER,
+          ...args,
+        },
+        k
+      );
+    });
+  }
+
+  async sipRefer(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'sipRefer()');
+    if (!args) {
+      throw new Error(`sessionId and toEndPoint are mandatory parameter`);
+    }
+    args.useSipRefer = true;
+    validateSipCallTransfer(args, 'sipRefer');
+
+    return new Promise((resolve, reject) => {
+      const k = (msg) => {
+        if (msg.error) {
+          reject(msg.error);
+        } else {
+          resolve(msg);
+        }
+      };
+
+      this.sendMessageToCallMachine(
+        {
+          action: DAILY_METHOD_SIP_CALL_TRANSFER,
+          ...args,
+        },
+        k
+      );
+    });
+  }
+
   async sendDTMF(args) {
     methodOnlySupportedAfterJoin(this._callState, 'sendDTMF()');
 
@@ -3488,17 +3539,20 @@ export default class DailyIframe extends EventEmitter {
     return true;
   }
 
-  async testCallQuality(args) {
-    methodNotSupportedAfterCallMachineInitialized(
+  async testCallQuality() {
+    methodNotSupportedInReactNative();
+    methodOnlySupportedInCallObject(this._callObjectMode, 'testCallQuality()');
+    methodRequiresInitializedCallMachine(
       this._callMachineInitialized,
+      'testCallQuality()',
+      null,
+      true
+    );
+    methodOnlySupportedBeforeJoin(
+      this._callState,
+      this._isPreparingToJoin,
       'testCallQuality()'
     );
-    if (
-      args.videoTrack &&
-      !this._validateVideoTrackForNetworkTests(args.videoTrack)
-    ) {
-      throw new Error('Video track error');
-    }
 
     // it's ok to call this method when a test is already running. we
     // simply wait for the same promise and return the same results from
@@ -3510,9 +3564,6 @@ export default class DailyIframe extends EventEmitter {
       }
     };
     _maybeUpdateTestCallInProgressFlag(true);
-
-    const { videoTrack, ...callArgs } = args;
-    this._sharedTracks.videoTrackForConnectionQualityTest = videoTrack;
 
     if (this.needsLoad()) {
       try {
@@ -3564,7 +3615,6 @@ export default class DailyIframe extends EventEmitter {
       this.sendMessageToCallMachine(
         {
           action: DAILY_METHOD_TEST_CALL_QUALITY,
-          ...callArgs,
           dailyJsVersion: this.properties.dailyJsVersion,
         },
         k
@@ -3690,7 +3740,7 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   getCpuLoadStats() {
-    return new Promise((resolve, _) => {
+    return new Promise((resolve) => {
       if (this._callState !== DAILY_STATE_JOINED) {
         resolve({
           cpuLoadState: undefined,
@@ -4163,7 +4213,7 @@ stopTestPeerToPeerCallQuality() instead`);
          * - this method is the only way `theme-updated` can change
          */
         try {
-          this.emit(DAILY_EVENT_THEME_UPDATED, {
+          this.emitDailyJSEvent({
             action: DAILY_EVENT_THEME_UPDATED,
             theme: this.properties.theme,
           });
@@ -4365,7 +4415,7 @@ stopTestPeerToPeerCallQuality() instead`);
     // handle case of url with query string and without
     let props = {
         ...this.properties,
-        emb: this._callFrameId,
+        emb: this.callClientId,
         embHref: encodeURIComponent(window.location.href),
         proxy: this.properties.dailyConfig?.proxyUrl
           ? encodeURIComponent(this.properties.dailyConfig?.proxyUrl)
@@ -4413,7 +4463,7 @@ stopTestPeerToPeerCallQuality() instead`);
       message,
       callback,
       this._iframe,
-      this._callFrameId
+      this.callClientId
     );
   }
 
@@ -4428,14 +4478,14 @@ stopTestPeerToPeerCallQuality() instead`);
     this._messageChannel.forwardPackagedMessageToCallMachine(
       msg,
       this._iframe,
-      this._callFrameId
+      this.callClientId
     );
   }
 
   addListenerForPackagedMessagesFromCallMachine(listener) {
     return this._messageChannel.addListenerForPackagedMessagesFromCallMachine(
       listener,
-      this._callFrameId
+      this.callClientId
     );
   }
 
@@ -4477,22 +4527,14 @@ stopTestPeerToPeerCallQuality() instead`);
           this._loadedCallback();
           this._loadedCallback = null;
         }
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_JOINED_MEETING:
         if (this._joinedCallback) {
           this._joinedCallback(msg.participants);
           this._joinedCallback = null;
         }
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_PARTICIPANT_JOINED:
       case DAILY_EVENT_PARTICIPANT_UPDATED:
@@ -4544,11 +4586,7 @@ stopTestPeerToPeerCallQuality() instead`);
           ) {
             this._participants[id] = { ...msg.participant };
             this.toggleParticipantAudioBasedOnNativeAudioFocus();
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
@@ -4561,21 +4599,13 @@ stopTestPeerToPeerCallQuality() instead`);
           }
           // delete from local cach
           delete this._participants[msg.participant.session_id];
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_PARTICIPANT_COUNTS_UPDATED:
         if (!dequal(this._participantCounts, msg.participantCounts)) {
           this._participantCounts = msg.participantCounts;
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_ACCESS_STATE_UPDATED: {
@@ -4587,29 +4617,20 @@ stopTestPeerToPeerCallQuality() instead`);
         }
         if (!dequal(this._accessState, newAccessState)) {
           this._accessState = newAccessState;
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       }
       case DAILY_EVENT_MEETING_SESSION_SUMMARY_UPDATED:
         if (msg.meetingSession) {
           this._meetingSessionSummary = msg.meetingSession;
-          try {
-            delete msg.callFrameId;
-            this.emit(msg.action, msg);
-            // send deprecated backwards-compatible event
-            const msg_cp = {
-              ...msg,
-              action: 'meeting-session-updated',
-            };
-            this.emit(msg_cp.action, msg_cp);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
+          // send deprecated backwards-compatible event
+          const msg_cp = {
+            ...msg,
+            action: 'meeting-session-updated',
+          };
+          this.emitDailyJSEvent(msg_cp);
         }
         break;
       case DAILY_EVENT_ERROR: {
@@ -4622,6 +4643,7 @@ stopTestPeerToPeerCallQuality() instead`);
           this._loadedCallback(msg.errorMsg);
           this._loadedCallback = null;
         }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         let { preserveIframe, ...event } = msg;
         if (event?.error?.details) {
           event.error.details = JSON.parse(event.error.details);
@@ -4631,11 +4653,7 @@ stopTestPeerToPeerCallQuality() instead`);
           this._joinedCallback(null, event);
           this._joinedCallback = null;
         }
-        try {
-          this.emit(msg.action, event);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(event);
         break;
       }
       case DAILY_EVENT_LEFT_MEETING:
@@ -4650,19 +4668,11 @@ stopTestPeerToPeerCallQuality() instead`);
           this._resolveLeave();
           this._resolveLeave = null;
         }
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_SELECTED_DEVICES_UPDATED:
         if (msg.devices) {
-          try {
-            this.emit(msg.action, msg);
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent(msg);
         }
         break;
       case DAILY_EVENT_NETWORK_QUALITY_CHANGE:
@@ -4674,33 +4684,21 @@ stopTestPeerToPeerCallQuality() instead`);
           ) {
             this._network.quality = quality;
             this._network.threshold = threshold;
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
       case DAILY_EVENT_CPU_LOAD_CHANGE:
         {
           if (msg && msg.cpuLoadState) {
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
       case DAILY_EVENT_FACE_COUNTS_UPDATED:
         {
           if (msg && msg.faceCounts !== undefined) {
-            try {
-              this.emit(msg.action, msg);
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent(msg);
           }
         }
         break;
@@ -4709,14 +4707,10 @@ stopTestPeerToPeerCallQuality() instead`);
           let { activeSpeaker } = msg;
           if (this._activeSpeaker.peerId !== activeSpeaker.peerId) {
             this._activeSpeaker.peerId = activeSpeaker.peerId;
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                activeSpeaker: this._activeSpeaker,
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              activeSpeaker: this._activeSpeaker,
+            });
           }
         }
         break;
@@ -4725,14 +4719,10 @@ stopTestPeerToPeerCallQuality() instead`);
           if (this._callObjectMode) return;
           const { show } = msg;
           this._showLocalVideo = show;
-          try {
-            this.emit(msg.action, {
-              action: msg.action,
-              show,
-            });
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent({
+            action: msg.action,
+            show,
+          });
         }
         break;
       case DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE:
@@ -4740,14 +4730,10 @@ stopTestPeerToPeerCallQuality() instead`);
           const { enabled } = msg;
           if (this._activeSpeakerMode !== enabled) {
             this._activeSpeakerMode = enabled;
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                enabled: this._activeSpeakerMode,
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              enabled: this._activeSpeakerMode,
+            });
           }
         }
         break;
@@ -4755,14 +4741,10 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_WAITING_PARTICIPANT_UPDATED:
       case DAILY_EVENT_WAITING_PARTICIPANT_REMOVED:
         this._waitingParticipants = msg.allWaitingParticipants;
-        try {
-          this.emit(msg.action, {
-            action: msg.action,
-            participant: msg.participant,
-          });
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent({
+          action: msg.action,
+          participant: msg.participant,
+        });
         break;
       case DAILY_EVENT_RECEIVE_SETTINGS_UPDATED:
         // NOTE: doing equality check here rather than before sending message in
@@ -4770,14 +4752,10 @@ stopTestPeerToPeerCallQuality() instead`);
         // receive settings
         if (!dequal(this._receiveSettings, msg.receiveSettings)) {
           this._receiveSettings = msg.receiveSettings;
-          try {
-            this.emit(msg.action, {
-              action: msg.action,
-              receiveSettings: msg.receiveSettings,
-            });
-          } catch (e) {
-            console.log('could not emit', msg, e);
-          }
+          this.emitDailyJSEvent({
+            action: msg.action,
+            receiveSettings: msg.receiveSettings,
+          });
         }
         break;
       case DAILY_EVENT_INPUT_SETTINGS_UPDATED:
@@ -4789,14 +4767,10 @@ stopTestPeerToPeerCallQuality() instead`);
           this._inputSettings = msg.inputSettings;
           this._preloadCache.inputSettings = {}; // clear cache, if any
           if (!dequal(prevInputSettings, this._getInputSettings())) {
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                inputSettings: this._getInputSettings(),
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              inputSettings: this._getInputSettings(),
+            });
           }
         }
         break;
@@ -4805,14 +4779,10 @@ stopTestPeerToPeerCallQuality() instead`);
           if (!dequal(this._sendSettings, msg.sendSettings)) {
             this._sendSettings = msg.sendSettings;
             this._preloadCache.sendSettings = null; // clear cache, if any
-            try {
-              this.emit(msg.action, {
-                action: msg.action,
-                sendSettings: msg.sendSettings,
-              });
-            } catch (e) {
-              console.log('could not emit', msg, e);
-            }
+            this.emitDailyJSEvent({
+              action: msg.action,
+              sendSettings: msg.sendSettings,
+            });
           }
         }
         break;
@@ -4865,7 +4835,7 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_SIDEBAR_VIEW_CHANGED:
         this.emitDailyJSEvent(msg);
         break;
-      case DAILY_EVENT_MEETING_SESSION_STATE_UPDATED:
+      case DAILY_EVENT_MEETING_SESSION_STATE_UPDATED: {
         const topologyChanged =
           this._meetingSessionState.topology !==
           (msg.meetingSessionState && msg.meetingSessionState.topology);
@@ -4884,6 +4854,7 @@ stopTestPeerToPeerCallQuality() instead`);
           this.emitDailyJSEvent(msg);
         }
         break;
+      }
       case DAILY_EVENT_LOCAL_SCREEN_SHARE_STARTED:
         this._isScreenSharing = true;
         this.emitDailyJSEvent(msg);
@@ -4919,17 +4890,14 @@ stopTestPeerToPeerCallQuality() instead`);
       case DAILY_EVENT_DIALIN_STOPPED:
       case DAILY_EVENT_DIALIN_WARNING:
       case DAILY_EVENT_DIALOUT_CONNECTED:
+      case DAILY_EVENT_DIALOUT_ANSWERED:
       case DAILY_EVENT_DIALOUT_ERROR:
       case DAILY_EVENT_DIALOUT_STOPPED:
       case DAILY_EVENT_DIALOUT_WARNING:
-        try {
-          this.emit(msg.action, msg);
-        } catch (e) {
-          console.log('could not emit', msg, e);
-        }
+        this.emitDailyJSEvent(msg);
         break;
       case DAILY_REQUEST_FULLSCREEN:
-        this.requestFullscreen();
+        void this.requestFullscreen();
         break;
       case DAILY_EXIT_FULLSCREEN:
         this.exitFullscreen();
@@ -4944,13 +4912,7 @@ stopTestPeerToPeerCallQuality() instead`);
       return;
     }
     if (!thisP.local && thisP[key] === false && prevP[key] !== thisP[key]) {
-      try {
-        this.emit(DAILY_EVENT_RECORDING_STOPPED, {
-          action: DAILY_EVENT_RECORDING_STOPPED,
-        });
-      } catch (e) {
-        console.log('could not emit', e);
-      }
+      this.emitDailyJSEvent({ action: DAILY_EVENT_RECORDING_STOPPED });
     }
   }
 
@@ -4960,13 +4922,7 @@ stopTestPeerToPeerCallQuality() instead`);
       return;
     }
     if (!thisP.local && thisP[key] === true && prevP[key] !== thisP[key]) {
-      try {
-        this.emit(DAILY_EVENT_RECORDING_STARTED, {
-          action: DAILY_EVENT_RECORDING_STARTED,
-        });
-      } catch (e) {
-        console.log('could not emit', e);
-      }
+      this.emitDailyJSEvent({ action: DAILY_EVENT_RECORDING_STARTED });
     }
   }
 
@@ -4979,16 +4935,12 @@ stopTestPeerToPeerCallQuality() instead`);
       !thisTrack ||
       prevTrack.id !== thisTrack.id
     ) {
-      try {
-        this.emit(DAILY_EVENT_TRACK_STOPPED, {
-          action: DAILY_EVENT_TRACK_STOPPED,
-          track: prevTrack,
-          participant: thisP,
-          type,
-        });
-      } catch (e) {
-        console.log('maybeEventTrackStopped: could not emit', e);
-      }
+      this.emitDailyJSEvent({
+        action: DAILY_EVENT_TRACK_STOPPED,
+        track: prevTrack,
+        participant: thisP,
+        type,
+      });
     }
   }
 
@@ -5001,16 +4953,12 @@ stopTestPeerToPeerCallQuality() instead`);
       prevTrack.readyState === 'ended' ||
       thisTrack.id !== prevTrack.id
     ) {
-      try {
-        this.emit(DAILY_EVENT_TRACK_STARTED, {
-          action: DAILY_EVENT_TRACK_STARTED,
-          track: thisTrack,
-          participant: thisP,
-          type,
-        });
-      } catch (e) {
-        console.log('maybeEventTrackStarted: could not emit', e);
-      }
+      this.emitDailyJSEvent({
+        action: DAILY_EVENT_TRACK_STARTED,
+        track: thisTrack,
+        participant: thisP,
+        type,
+      });
     }
   }
 
@@ -5052,6 +5000,7 @@ stopTestPeerToPeerCallQuality() instead`);
   emitDailyJSEvent(msg) {
     {
       try {
+        msg.callClientId = this.callClientId;
         this.emit(msg.action, msg);
       } catch (e) {
         console.log('could not emit', msg, e);
@@ -5170,7 +5119,7 @@ stopTestPeerToPeerCallQuality() instead`);
     if (!isReactNative()) {
       return;
     }
-    this.nativeUtils().setKeepDeviceAwake(keepAwake, this._callFrameId);
+    this.nativeUtils().setKeepDeviceAwake(keepAwake, this.callClientId);
   }
 
   updateDeviceAudioMode(useInCallAudioMode) {
@@ -5211,7 +5160,7 @@ stopTestPeerToPeerCallQuality() instead`);
       title,
       subtitle,
       iconName,
-      this._callFrameId
+      this.callClientId
     );
   }
 
@@ -5248,7 +5197,7 @@ stopTestPeerToPeerCallQuality() instead`);
     // `call.enumerateDevices()` (and that method is constrainted to returning
     // structured-clonable values due to the call machine message channel).
     newDevices = newDevices.map((d) => JSON.parse(JSON.stringify(d)));
-    this.emit(DAILY_EVENT_AVAILABLE_DEVICES_UPDATED, {
+    this.emitDailyJSEvent({
       action: DAILY_EVENT_AVAILABLE_DEVICES_UPDATED,
       availableDevices: newDevices,
     });
@@ -5354,25 +5303,10 @@ stopTestPeerToPeerCallQuality() instead`);
     return str;
   }
 
-  _logCallQualityTestResults(results) {
-    if (this._callMachineInitialized) {
-      const logMsg = {
-        action: DAILY_METHOD_TRANSMIT_LOG,
-        level: 'info',
-        code: 1012,
-        results,
-      };
-      this.sendMessageToCallMachine(logMsg);
-    } else {
-      console.warn(
-        '_logCallQualityTestResults() must be called after daily initialization'
-      );
-    }
-  }
-
   _logUseAfterDestroy() {
     // if we have any live call instance, send the log over the wire to land in l&t
     // any l&t attached to this window. it don't matter which :)
+    const _firstCallInstance = Object.values(_callInstances)[0];
     if (!this.needsLoad()) {
       // once strictMode is always true, this block can go away because it
       // should be impossible for needsLoad to be false
@@ -5385,15 +5319,15 @@ stopTestPeerToPeerCallQuality() instead`);
         logMsg,
         null,
         this._iframe,
-        this._callFrameId
+        this.callClientId
       );
-    } else if (_callInstance && !_callInstance.needsLoad()) {
+    } else if (_firstCallInstance && !_firstCallInstance.needsLoad()) {
       const logMsg = {
         action: DAILY_METHOD_TRANSMIT_LOG,
         level: 'error',
         code: this.strictMode ? 9995 : 9997,
       };
-      _callInstance.sendMessageToCallMachine(logMsg);
+      _firstCallInstance.sendMessageToCallMachine(logMsg);
     } else if (!this.strictMode) {
       const errMsg =
         'You are are attempting to use a call instance that was previously ' +
@@ -5405,8 +5339,9 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   _logDuplicateInstanceAttempt() {
-    const callInst = _callInstance._callMachineInitialized
-      ? _callInstance
+    const _firstCallInstance = Object.values(_callInstances)[0];
+    const callInst = _firstCallInstance._callMachineInitialized
+      ? _firstCallInstance
       : this._callMachineInitialized
       ? this
       : undefined;
@@ -5414,14 +5349,14 @@ stopTestPeerToPeerCallQuality() instead`);
       callInst.sendMessageToCallMachine({
         action: DAILY_METHOD_TRANSMIT_LOG,
         level: 'warn',
-        code: this.strictMode ? 9990 : 9992,
+        code: this.allowMultipleCallInstances ? 9993 : 9992,
       });
       this._delayDuplicateInstanceLog = false;
     } else {
       // callMachineInitialized most likely will only fire once and
       // it's unclear which call machine will handle it.
       this._delayDuplicateInstanceLog = true;
-      _callInstance._delayDuplicateInstanceLog = true;
+      _firstCallInstance._delayDuplicateInstanceLog = true;
     }
   }
 
@@ -5505,7 +5440,7 @@ stopTestPeerToPeerCallQuality() instead`);
   }
 
   _callMachine() {
-    return window._daily?.instances?.[this._callFrameId]?.callMachine;
+    return window._daily?.instances?.[this.callClientId]?.callMachine;
   }
 }
 
@@ -5522,12 +5457,12 @@ function initializePreloadCache() {
   };
 }
 
-function resetPreloadCache(c) {
+function resetPreloadCache() {
   // don't need to do anything, until we add stuff to the preload
   // cache that should not persist
 }
 
-function makeSafeForPostMessage(props, callFrameId) {
+function makeSafeForPostMessage(props, callClientId) {
   const safe = {};
   for (let p in props) {
     if (props[p] instanceof MediaStreamTrack) {
@@ -5539,16 +5474,16 @@ function makeSafeForPostMessage(props, callFrameId) {
     } else if (p === 'dailyConfig') {
       if (props[p].modifyLocalSdpHook) {
         let customCallbacks =
-          window._daily.instances[callFrameId].customCallbacks || {};
+          window._daily.instances[callClientId].customCallbacks || {};
         customCallbacks.modifyLocalSdpHook = props[p].modifyLocalSdpHook;
-        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
+        window._daily.instances[callClientId].customCallbacks = customCallbacks;
         delete props[p].modifyLocalSdpHook;
       }
       if (props[p].modifyRemoteSdpHook) {
         let customCallbacks =
-          window._daily.instances[callFrameId].customCallbacks || {};
+          window._daily.instances[callClientId].customCallbacks || {};
         customCallbacks.modifyRemoteSdpHook = props[p].modifyRemoteSdpHook;
-        window._daily.instances[callFrameId].customCallbacks = customCallbacks;
+        window._daily.instances[callClientId].customCallbacks = customCallbacks;
         delete props[p].modifyRemoteSdpHook;
       }
       safe[p] = props[p];
@@ -5600,27 +5535,15 @@ function methodOnlySupportedBeforeJoin(
 function methodRequiresInitializedCallMachine(
   callMachineInitialized,
   methodName = 'This daily-js method',
-  moreInfo
+  moreInfo,
+  beforeJoinOnly = false
 ) {
   if (!callMachineInitialized) {
-    let msg = `${methodName} requires preAuth(), startCamera(), or join() to \
+    let msg = beforeJoinOnly
+      ? `${methodName} requires preAuth() or startCamera() to initialize call \
+state.`
+      : `${methodName} requires preAuth(), startCamera(), or join() to \
 initialize call state.`;
-    if (moreInfo) {
-      msg += ` ${moreInfo}`;
-    }
-    console.error(msg);
-    throw new Error(msg);
-  }
-}
-
-function methodNotSupportedAfterCallMachineInitialized(
-  callMachineInitialized,
-  methodName = 'This daily-js method',
-  moreInfo
-) {
-  if (callMachineInitialized) {
-    let msg = `${methodName} can not be called after preAuth(), startCamera(), \
-or join() and call state has been initialized.`;
     if (moreInfo) {
       msg += ` ${moreInfo}`;
     }
@@ -6176,6 +6099,30 @@ function validateConfigPropType(prop, propType) {
       //   "Internal programming error: we've defined our config prop types wrong"
       // );
       return false;
+  }
+}
+
+function validateSipCallTransfer(
+  { sessionId, toEndPoint, useSipRefer },
+  methodName
+) {
+  if (!(sessionId && toEndPoint)) {
+    throw new Error(`${methodName}() requires a sessionId and toEndPoint`);
+  }
+  if (typeof sessionId !== 'string' || typeof toEndPoint !== 'string') {
+    throw new Error(
+      `Invalid paramater: sessionId and toEndPoint must be of type string`
+    );
+  }
+
+  if (useSipRefer && !toEndPoint.startsWith('sip:')) {
+    throw new Error(`"toEndPoint" must be a "sip" address`);
+  }
+
+  if (!(toEndPoint.startsWith('sip:') || toEndPoint.startsWith('+'))) {
+    throw new Error(
+      `toEndPoint: ${toEndPoint} must starts with either "sip:" or "+"`
+    );
   }
 }
 
