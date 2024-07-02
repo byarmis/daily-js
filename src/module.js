@@ -3629,9 +3629,16 @@ export default class DailyIframe extends EventEmitter {
   }
 
   async testConnectionQuality(args) {
-    console.warn(`testConnectionQuality() is deprecated: use \
+    let stats;
+    if (isReactNative()) {
+      console.warn(`testConnectionQuality() is deprecated: use \
 testPeerToPeerCallQuality() instead`);
-    const stats = await this.testPeerToPeerCallQuality(args);
+      stats = await this.testPeerToPeerCallQuality(args);
+    } else {
+      console.warn(`testConnectionQuality() is deprecated: use \
+testCallQuality() instead`);
+      stats = await this.testCallQuality();
+    }
     // return backwards compatible type
     let bcStats = {
       result: stats.result,
@@ -3649,7 +3656,7 @@ testPeerToPeerCallQuality() instead`);
   async testPeerToPeerCallQuality(args) {
     methodNotSupportedDuringTestCall(
       this._testCallInProgress,
-      `testConnectionQuality()`
+      `testPeerToPeerCallQuality()`
     );
     if (this.needsLoad()) {
       try {
@@ -3686,9 +3693,15 @@ testPeerToPeerCallQuality() instead`);
   }
 
   stopTestConnectionQuality() {
-    console.warn(`stopTestConnectionQuality() is deprecated: use \
-stopTestPeerToPeerCallQuality() instead`);
-    this.stopTestPeerToPeerCallQuality();
+    if (isReactNative()) {
+      console.warn(`stopTestConnectionQuality() is deprecated: use \
+testPeerToPeerCallQuality() and stopTestPeerToPeerCallQuality() instead`);
+      this.stopTestPeerToPeerCallQuality();
+    } else {
+      console.warn(`stopTestConnectionQuality() is deprecated: use \
+testCallQuality() and stopTestCallQuality() instead`);
+      this.stopTestCallQuality();
+    }
   }
 
   stopTestPeerToPeerCallQuality() {
