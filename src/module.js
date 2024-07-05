@@ -1277,7 +1277,9 @@ export default class DailyIframe extends EventEmitter {
     this._network = { threshold: 'good', quality: 100 };
     this._activeSpeaker = {};
     this._localAudioLevel = 0;
+    this._isLocalAudioLevelObserverRunning = false;
     this._remoteParticipantsAudioLevel = {};
+    this._isRemoteParticipantsAudioLevelObserverRunning = false;
 
     this._messageChannel = isReactNative()
       ? new ReactNativeMessageChannel()
@@ -2133,8 +2135,11 @@ export default class DailyIframe extends EventEmitter {
       };
       return;
     }
+    // Optimistic update
+    this._isLocalAudioLevelObserverRunning = true;
     return new Promise((resolve, reject) => {
       let k = (msg) => {
+        this._isLocalAudioLevelObserverRunning = !msg.error;
         if (msg.error) {
           reject({ error: msg.error });
         } else {
@@ -2151,9 +2156,14 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
+  isLocalAudioLevelObserverRunning() {
+    return this._isLocalAudioLevelObserverRunning;
+  }
+
   stopLocalAudioLevelObserver() {
     this._preloadCache.localAudioLevelObserver = null;
     this._localAudioLevel = 0;
+    this._isLocalAudioLevelObserverRunning = false;
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_STOP_LOCAL_AUDIO_LEVEL_OBSERVER,
     });
@@ -2168,8 +2178,11 @@ export default class DailyIframe extends EventEmitter {
       };
       return;
     }
+    // Optimistic update
+    this._isRemoteParticipantsAudioLevelObserverRunning = true;
     return new Promise((resolve, reject) => {
       let k = (msg) => {
+        this._isRemoteParticipantsAudioLevelObserverRunning = !msg.error;
         if (msg.error) {
           reject({ error: msg.error });
         } else {
@@ -2186,9 +2199,14 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
+  isRemoteParticipantsAudioLevelObserverRunning() {
+    return this._isRemoteParticipantsAudioLevelObserverRunning;
+  }
+
   stopRemoteParticipantsAudioLevelObserver() {
     this._preloadCache.remoteParticipantsAudioLevelObserver = null;
     this._remoteParticipantsAudioLevel = {};
+    this._isRemoteParticipantsAudioLevelObserverRunning = false;
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_STOP_REMOTE_PARTICIPANTS_AUDIO_LEVEL_OBSERVER,
     });
@@ -5122,7 +5140,9 @@ testCallQuality() and stopTestCallQuality() instead`);
     this._inputSettings = undefined;
     this._sendSettings = {};
     this._localAudioLevel = 0;
+    this._isLocalAudioLevelObserverRunning = false;
     this._remoteParticipantsAudioLevel = {};
+    this._isRemoteParticipantsAudioLevelObserverRunning = false;
     this._callMachineInitialized = false;
     this._bundleLoadTime = undefined;
     resetPreloadCache(this._preloadCache);
