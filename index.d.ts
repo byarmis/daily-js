@@ -1588,6 +1588,7 @@ export interface DailyEventObjectSidebarViewChanged
 export interface DailyEventObjectDialinConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-connected'>;
   sipHeaders: Record<string, any>;
+  sipFrom: string;
   actionTraceId?: string;
 }
 
