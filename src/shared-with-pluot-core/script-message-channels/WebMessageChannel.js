@@ -85,7 +85,7 @@ export default class WebMessageChannel extends ScriptMessageChannel {
     window.addEventListener('message', wrappedListener);
   }
 
-  sendMessageToCallMachine(message, callback, iframe, callClientId) {
+  sendMessageToCallMachine(message, callback, callClientId, iframe) {
     if (!callClientId) {
       throw new Error(
         'undefined callClientId. Are you trying to use a DailyCall instance previously destroyed?'

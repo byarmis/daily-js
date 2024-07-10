@@ -4493,8 +4493,8 @@ testCallQuality() and stopTestCallQuality() instead`);
     this._messageChannel.sendMessageToCallMachine(
       message,
       callback,
-      this._iframe,
-      this.callClientId
+      this.callClientId,
+      this._iframe
     );
   }
 
@@ -5351,8 +5351,8 @@ testCallQuality() and stopTestCallQuality() instead`);
       this._messageChannel.sendMessageToCallMachine(
         logMsg,
         null,
-        this._iframe,
-        this.callClientId
+        this.callClientId,
+        this._iframe
       );
     } else if (_firstCallInstance && !_firstCallInstance.needsLoad()) {
       const logMsg = {

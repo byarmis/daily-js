@@ -25,6 +25,7 @@ export default class ReactNativeMessageChannel extends ScriptMessageChannel {
     this._addListener(
       listener,
       global.callMachineToDailyJsEmitter,
+      callClientId,
       thisValue,
       'received call machine message'
     );
@@ -34,24 +35,28 @@ export default class ReactNativeMessageChannel extends ScriptMessageChannel {
     this._addListener(
       listener,
       global.dailyJsToCallMachineEmitter,
+      callClientId,
       thisValue,
       'received daily-js message'
     );
   }
 
-  sendMessageToCallMachine(message, callback) {
+  sendMessageToCallMachine(message, callback, callClientId) {
     this._sendMessage(
       message,
       global.dailyJsToCallMachineEmitter,
-      'sending message to call machine',
-      callback
+      callClientId,
+      callback,
+      'sending message to call machine'
     );
   }
 
-  sendMessageToDailyJs(message) {
+  sendMessageToDailyJs(message, callClientId) {
     this._sendMessage(
       message,
       global.callMachineToDailyJsEmitter,
+      callClientId,
+      null,
       'sending message to daily-js'
     );
   }
@@ -74,9 +79,11 @@ export default class ReactNativeMessageChannel extends ScriptMessageChannel {
     }
   }
 
-  _addListener(listener, messageEmitter, thisValue, logMessage) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _addListener(listener, messageEmitter, callClientId, thisValue, _logMessage) {
     const wrappedListener = (msg) => {
-      // console.log(`[ReactNativeMessageChannel] ${logMessage}`, msg);
+      if (msg.callClientId !== callClientId) return;
+      // console.log(`[ReactNativeMessageChannel] ${_logMessage}`, msg);
       if (msg.callbackStamp && this._messageCallbacks[msg.callbackStamp]) {
         // console.log('[ReactNativeMessageChannel] handling message as callback', msg);
         const callbackStamp = msg.callbackStamp; // Storing here since the callback could delete msg.callbackStamp
@@ -89,13 +96,16 @@ export default class ReactNativeMessageChannel extends ScriptMessageChannel {
     messageEmitter.addListener('message', wrappedListener);
   }
 
-  _sendMessage(message, messageEmitter, logMessage, callback) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _sendMessage(message, messageEmitter, callClientId, callback, _logMessage) {
+    let msg = { ...message };
+    msg.callClientId = callClientId;
     if (callback) {
       let stamp = randomStringId();
       this._messageCallbacks[stamp] = callback;
-      message.callbackStamp = stamp;
+      msg.callbackStamp = stamp;
     }
-    // console.log(`[ReactNativeMessageChannel] ${logMessage}`, message);
-    messageEmitter.emit('message', message);
+    // console.log(`[ReactNativeMessageChannel] ${_logMessage}`, msg);
+    messageEmitter.emit('message', msg);
   }
 }
