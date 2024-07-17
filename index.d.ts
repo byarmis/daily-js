@@ -496,6 +496,7 @@ export interface DailyParticipantTracks {
   screenVideo: DailyTrackState;
   rmpAudio?: DailyTrackState;
   rmpVideo?: DailyTrackState;
+  [customTrackKey: string]: DailyTrackState | undefined;
 }
 
 export interface DailyParticipant {
@@ -537,9 +538,7 @@ export interface DailyParticipant {
   screen: boolean;
 
   // track state
-  tracks: DailyParticipantTracks & {
-    [customTrackKey: string]: DailyTrackState | undefined;
-  };
+  tracks: DailyParticipantTracks;
 
   // user/session info
   user_id: string;
@@ -1588,6 +1587,8 @@ export interface DailyEventObjectSidebarViewChanged
 
 export interface DailyEventObjectDialinConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-connected'>;
+  sipHeaders?: Record<string, any>;
+  sipFrom?: string;
   actionTraceId?: string;
 }
 
@@ -1599,6 +1600,8 @@ export interface DailyEventObjectDialinError extends DailyEventObjectBase {
 
 export interface DailyEventObjectDialinStopped extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialin-stopped'>;
+  sipHeaders?: Record<string, any>;
+  sipFrom?: string;
   actionTraceId?: string;
 }
 
@@ -2106,9 +2109,11 @@ export interface DailyCall {
   setUserData(data: unknown): Promise<{ userData: unknown }>;
   startCamera(properties?: DailyCallOptions): Promise<DailyDeviceInfos>;
   startLocalAudioLevelObserver(interval?: number): Promise<void>;
+  isLocalAudioLevelObserverRunning(): boolean;
   stopLocalAudioLevelObserver(): void;
   getLocalAudioLevel(): number;
   startRemoteParticipantsAudioLevelObserver(interval?: number): Promise<void>;
+  isRemoteParticipantsAudioLevelObserverRunning(): boolean;
   stopRemoteParticipantsAudioLevelObserver(): void;
   getRemoteParticipantsAudioLevel(): DailyParticipantsAudioLevel;
   cycleCamera(properties?: {
