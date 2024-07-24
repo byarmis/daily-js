@@ -13,6 +13,7 @@
  */
 
 export type DailyLanguage =
+  | 'da'
   | 'de'
   | 'en'
   | 'es'

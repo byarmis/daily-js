@@ -519,6 +519,7 @@ const FRAME_PROPS = {
   lang: {
     validate: (lang) => {
       return [
+        'da',
         'de',
         'en-us', // Here for backwards compatibility, but not encouraged (just maps to 'en' anyway)
         'en',
@@ -539,7 +540,7 @@ const FRAME_PROPS = {
         'user',
       ].includes(lang);
     },
-    help: 'language not supported. Options are: de, en-us, en, es, fi, fr, it, jp, ka, nl, no, pl, pt, pt-BR, ru, sv, tr, user',
+    help: 'language not supported. Options are: da, de, en-us, en, es, fi, fr, it, jp, ka, nl, no, pl, pt, pt-BR, ru, sv, tr, user',
   },
   userName: true, // ignored if there's a token
   userData: {
