@@ -158,6 +158,7 @@ import {
   UPDATE_LIVE_STREAMING_ENDPOINTS_OP,
   DAILY_METHOD_STOP_LIVE_STREAMING,
   DAILY_METHOD_START_TRANSCRIPTION,
+  DAILY_METHOD_UPDATE_TRANSCRIPTION,
   DAILY_METHOD_STOP_TRANSCRIPTION,
   DAILY_CUSTOM_TRACK,
   DAILY_METHOD_GET_CAMERA_FACING_MODE,
@@ -3214,6 +3215,13 @@ export default class DailyIframe extends EventEmitter {
   startTranscription(args) {
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_START_TRANSCRIPTION,
+      ...args,
+    });
+  }
+
+  updateTranscription(args) {
+    this.sendMessageToCallMachine({
+      action: DAILY_METHOD_UPDATE_TRANSCRIPTION,
       ...args,
     });
   }

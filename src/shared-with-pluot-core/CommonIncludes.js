@@ -283,6 +283,8 @@ export const DAILY_METHOD_UPDATE_REMOTE_MEDIA_PLAYER =
   'daily-method-update-remote-media-player';
 export const DAILY_METHOD_START_TRANSCRIPTION =
   'daily-method-start-transcription';
+export const DAILY_METHOD_UPDATE_TRANSCRIPTION =
+  'daily-method-update-transcription';
 export const DAILY_METHOD_STOP_TRANSCRIPTION =
   'daily-method-stop-transcription';
 export const DAILY_METHOD_PREAUTH = 'daily-method-preauth';

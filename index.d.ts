@@ -1955,6 +1955,11 @@ export interface DailyTranscriptionDeepgramOptions {
   punctuate?: boolean;
   extra?: Record<string, any>;
   includeRawResponse?: boolean;
+  participants?: Array<string>;
+}
+
+export interface DailyTranscriptionUpdateOptions {
+  participants?: Array<string>;
 }
 
 export type SidebarView =
@@ -2168,6 +2173,7 @@ export interface DailyCall {
     options: DailyRemoteMediaPlayerUpdateOptions
   ): Promise<DailyRemoteMediaPlayerInfo>;
   startTranscription(options?: DailyTranscriptionDeepgramOptions): void;
+  updateTranscription(options?: DailyTranscriptionUpdateOptions): void;
   stopTranscription(): void;
   getNetworkStats(): Promise<DailyNetworkStats>;
   getCpuLoadStats(): Promise<DailyCpuLoadStats>;
