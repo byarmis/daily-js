@@ -24,7 +24,7 @@ export default class ScriptMessageChannel {
    * Send a message to the call machine (pluot-core).
    * For use by daily-js.
    */
-  sendMessageToCallMachine(message, callback, iframe, callClientId) {
+  sendMessageToCallMachine(message, callback, callClientId, iframe) {
     notImplementedError();
   }
 
