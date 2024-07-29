@@ -5151,6 +5151,7 @@ testCallQuality() and stopTestCallQuality() instead`);
     this._isLocalAudioLevelObserverRunning = false;
     this._remoteParticipantsAudioLevel = {};
     this._isRemoteParticipantsAudioLevelObserverRunning = false;
+    this._maxAppMessageSize = MAX_APP_MSG_SIZE;
     this._callMachineInitialized = false;
     this._bundleLoadTime = undefined;
     resetPreloadCache(this._preloadCache);
