@@ -2056,7 +2056,7 @@ export interface DailyCall {
   localVideo(): boolean;
   setLocalAudio(
     enabled: boolean,
-    options?: { forceDiscardTrack: true }
+    options?: { forceDiscardTrack: boolean }
   ): DailyCall;
   setLocalVideo(enabled: boolean): DailyCall;
   localScreenAudio(): boolean;
