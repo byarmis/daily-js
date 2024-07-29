@@ -1281,6 +1281,7 @@ export default class DailyIframe extends EventEmitter {
     this._isLocalAudioLevelObserverRunning = false;
     this._remoteParticipantsAudioLevel = {};
     this._isRemoteParticipantsAudioLevelObserverRunning = false;
+    this._maxAppMessageSize = MAX_APP_MSG_SIZE;
 
     this._messageChannel = isReactNative()
       ? new ReactNativeMessageChannel()
@@ -4020,9 +4021,9 @@ testCallQuality() and stopTestCallQuality() instead`);
 
   sendAppMessage(data, to = '*') {
     methodOnlySupportedAfterJoin(this._callState, 'sendAppMessage()');
-    if (JSON.stringify(data).length > MAX_APP_MSG_SIZE) {
+    if (JSON.stringify(data).length > this._maxAppMessageSize) {
       throw new Error(
-        'Message data too large. Max size is ' + MAX_APP_MSG_SIZE
+        'Message data too large. Max size is ' + this._maxAppMessageSize
       );
     }
     this.sendMessageToCallMachine({ action: DAILY_METHOD_APP_MSG, data, to });
@@ -4562,11 +4563,17 @@ testCallQuality() and stopTestCallQuality() instead`);
         this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_JOINED_MEETING:
-        if (this._joinedCallback) {
-          this._joinedCallback(msg.participants);
-          this._joinedCallback = null;
+        {
+          let msgForEvent = { ...msg };
+          delete msgForEvent.internal;
+          this._maxAppMessageSize =
+            msg.internal?._maxAppMessageSize || MAX_APP_MSG_SIZE;
+          if (this._joinedCallback) {
+            this._joinedCallback(msg.participants);
+            this._joinedCallback = null;
+          }
+          this.emitDailyJSEvent(msgForEvent);
         }
-        this.emitDailyJSEvent(msg);
         break;
       case DAILY_EVENT_PARTICIPANT_JOINED:
       case DAILY_EVENT_PARTICIPANT_UPDATED:
