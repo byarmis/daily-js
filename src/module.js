@@ -3213,6 +3213,8 @@ export default class DailyIframe extends EventEmitter {
   }
 
   startTranscription(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'startTranscription()');
+
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_START_TRANSCRIPTION,
       ...args,
@@ -3220,6 +3222,18 @@ export default class DailyIframe extends EventEmitter {
   }
 
   updateTranscription(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'updateTranscription()');
+    if (!args) {
+      throw new Error(`updateTranscription Error: options is mandatory`);
+    }
+    // validate the args
+    if (typeof args !== 'object') {
+      throw new Error(`updateTranscription Error: options must be object type`);
+    }
+    if (!args.participants || !Array.isArray(args.participants)) {
+      throw new Error(`"participants" to update must be an array`);
+    }
+
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_UPDATE_TRANSCRIPTION,
       ...args,
@@ -3227,6 +3241,8 @@ export default class DailyIframe extends EventEmitter {
   }
 
   stopTranscription() {
+    methodOnlySupportedAfterJoin(this._callState, 'stopTranscription()');
+
     this.sendMessageToCallMachine({ action: DAILY_METHOD_STOP_TRANSCRIPTION });
   }
 

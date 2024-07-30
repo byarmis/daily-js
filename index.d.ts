@@ -1959,7 +1959,7 @@ export interface DailyTranscriptionDeepgramOptions {
 }
 
 export interface DailyTranscriptionUpdateOptions {
-  participants?: Array<string>;
+  participants: Array<string>;
 }
 
 export type SidebarView =
@@ -2173,7 +2173,7 @@ export interface DailyCall {
     options: DailyRemoteMediaPlayerUpdateOptions
   ): Promise<DailyRemoteMediaPlayerInfo>;
   startTranscription(options?: DailyTranscriptionDeepgramOptions): void;
-  updateTranscription(options?: DailyTranscriptionUpdateOptions): void;
+  updateTranscription(options: DailyTranscriptionUpdateOptions): void;
   stopTranscription(): void;
   getNetworkStats(): Promise<DailyNetworkStats>;
   getCpuLoadStats(): Promise<DailyCpuLoadStats>;
