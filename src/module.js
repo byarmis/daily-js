@@ -5381,24 +5381,18 @@ testCallQuality() and stopTestCallQuality() instead`);
   }
 
   _logDuplicateInstanceAttempt() {
-    const _firstCallInstance = Object.values(_callInstances)[0];
-    const callInst = _firstCallInstance._callMachineInitialized
-      ? _firstCallInstance
-      : this._callMachineInitialized
-      ? this
-      : undefined;
-    if (callInst) {
-      callInst.sendMessageToCallMachine({
-        action: DAILY_METHOD_TRANSMIT_LOG,
-        level: 'warn',
-        code: this.allowMultipleCallInstances ? 9993 : 9992,
-      });
-      this._delayDuplicateInstanceLog = false;
-    } else {
-      // callMachineInitialized most likely will only fire once and
-      // it's unclear which call machine will handle it.
-      this._delayDuplicateInstanceLog = true;
-      _firstCallInstance._delayDuplicateInstanceLog = true;
+    // we want to log the duplication to all instances
+    for (const callInst of Object.values(_callInstances)) {
+      if (callInst._callMachineInitialized) {
+        callInst.sendMessageToCallMachine({
+          action: DAILY_METHOD_TRANSMIT_LOG,
+          level: 'warn',
+          code: this.allowMultipleCallInstances ? 9993 : 9992,
+        });
+        callInst._delayDuplicateInstanceLog = false;
+      } else {
+        callInst._delayDuplicateInstanceLog = true;
+      }
     }
   }
 
