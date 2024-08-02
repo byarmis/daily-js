@@ -1363,6 +1363,7 @@ export interface DailyEventObjectAppMessage<Data = any>
 export interface DailyEventObjectTranscriptionMessage
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-message'>;
+  instanceId?: string;
   participantId: string;
   text: string;
   timestamp: Date;
@@ -1443,6 +1444,7 @@ export interface DailyEventObjectLiveStreamingStopped
 export interface DailyEventObjectTranscriptionStarted
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-started'>;
+  instanceId?: string;
   transcriptId?: string;
   language: string;
   model: string;
@@ -1459,12 +1461,14 @@ export interface DailyEventObjectTranscriptionStarted
 export interface DailyEventObjectTranscriptionStopped
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-stopped'>;
+  instanceId?: string;
   updatedBy: string;
 }
 
 export interface DailyEventObjectTranscriptionError
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-error'>;
+  instanceId?: string;
   errorMsg?: string;
 }
 
@@ -1955,13 +1959,18 @@ export interface DailyTranscriptionDeepgramOptions {
   punctuate?: boolean;
   extra?: Record<string, any>;
   includeRawResponse?: boolean;
+  instanceId?: string;
   participants?: Array<string>;
 }
 
 export interface DailyTranscriptionUpdateOptions {
+  instanceId?: string;
   participants: Array<string>;
 }
 
+export interface DailyTranscriptionStopOptions {
+  instanceId?: string;
+}
 export type SidebarView =
   | null
   | 'people'
@@ -2174,7 +2183,7 @@ export interface DailyCall {
   ): Promise<DailyRemoteMediaPlayerInfo>;
   startTranscription(options?: DailyTranscriptionDeepgramOptions): void;
   updateTranscription(options: DailyTranscriptionUpdateOptions): void;
-  stopTranscription(): void;
+  stopTranscription(options?: DailyTranscriptionStopOptions): void;
   getNetworkStats(): Promise<DailyNetworkStats>;
   getCpuLoadStats(): Promise<DailyCpuLoadStats>;
   testWebsocketConnectivity(): Promise<DailyWebsocketConnectivityTestResults>;

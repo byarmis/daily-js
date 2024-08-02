@@ -3240,8 +3240,14 @@ export default class DailyIframe extends EventEmitter {
     });
   }
 
-  stopTranscription() {
+  stopTranscription(args) {
     methodOnlySupportedAfterJoin(this._callState, 'stopTranscription()');
+    if (args && typeof args !== 'object') {
+      throw new Error(`stopTranscription Error: options must be object type`);
+    }
+    if (args && !args.instanceId) {
+      throw new Error(`"instanceId" not provided`);
+    }
 
     this.sendMessageToCallMachine({ action: DAILY_METHOD_STOP_TRANSCRIPTION });
   }
