@@ -203,7 +203,6 @@ const supportedBrowsersForAudioProcessors = ['Chrome', 'Firefox'];
 export function isAudioProcessingSupported() {
   // Using Krisp's compatibility, since they're currently our only audio processor
   if (isReactNative()) return false;
-  if (browserMobile_p()) return false;
   // But Krisp uses an AudioWorkletNode, which isn't available in older Safari
   if (typeof AudioWorkletNode === 'undefined') return false;
   return supportedBrowsersForAudioProcessors.includes(getBrowserName());
