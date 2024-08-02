@@ -198,7 +198,7 @@ function isVideoProcessingSupportedInBrowser_Banuba() {
   return ['Chrome', 'Firefox', 'Safari'].includes(browserName);
 }
 
-const supportedBrowsersForAudioProcessors = ['Chrome', 'Firefox'];
+const supportedBrowsersForAudioProcessors = ['Chrome', 'Firefox', 'Safari'];
 
 export function isAudioProcessingSupported() {
   // Using Krisp's compatibility, since they're currently our only audio processor
