@@ -3214,7 +3214,7 @@ export default class DailyIframe extends EventEmitter {
 
   startTranscription(args) {
     methodOnlySupportedAfterJoin(this._callState, 'startTranscription()');
-
+    
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_START_TRANSCRIPTION,
       ...args,
