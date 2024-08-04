@@ -3249,7 +3249,10 @@ export default class DailyIframe extends EventEmitter {
       throw new Error(`"instanceId" not provided`);
     }
 
-    this.sendMessageToCallMachine({ action: DAILY_METHOD_STOP_TRANSCRIPTION });
+    this.sendMessageToCallMachine({
+      action: DAILY_METHOD_STOP_TRANSCRIPTION,
+      ...args,
+    });
   }
 
   async startDialOut(args) {
