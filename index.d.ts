@@ -1444,7 +1444,7 @@ export interface DailyEventObjectLiveStreamingStopped
 export interface DailyEventObjectTranscriptionStarted
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-started'>;
-  instanceId?: string;
+  instanceId: string;
   transcriptId?: string;
   language: string;
   model: string;
@@ -1461,14 +1461,14 @@ export interface DailyEventObjectTranscriptionStarted
 export interface DailyEventObjectTranscriptionStopped
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-stopped'>;
-  instanceId?: string;
+  instanceId: string;
   updatedBy: string;
 }
 
 export interface DailyEventObjectTranscriptionError
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'transcription-error'>;
-  instanceId?: string;
+  instanceId: string;
   errorMsg?: string;
 }
 

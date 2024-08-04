@@ -3214,7 +3214,7 @@ export default class DailyIframe extends EventEmitter {
 
   startTranscription(args) {
     methodOnlySupportedAfterJoin(this._callState, 'startTranscription()');
-    
+
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_START_TRANSCRIPTION,
       ...args,
@@ -3230,8 +3230,11 @@ export default class DailyIframe extends EventEmitter {
     if (typeof args !== 'object') {
       throw new Error(`updateTranscription Error: options must be object type`);
     }
-    if (!args.participants || !Array.isArray(args.participants)) {
-      throw new Error(`"participants" to update must be an array`);
+    // participants is either null or an array
+    if (args.participants && !Array.isArray(args.participants)) {
+      throw new Error(
+        `updateTranscription Error: participants must be an array`
+      );
     }
 
     this.sendMessageToCallMachine({
