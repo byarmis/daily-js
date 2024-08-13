@@ -158,6 +158,7 @@ import {
   UPDATE_LIVE_STREAMING_ENDPOINTS_OP,
   DAILY_METHOD_STOP_LIVE_STREAMING,
   DAILY_METHOD_START_TRANSCRIPTION,
+  DAILY_METHOD_UPDATE_TRANSCRIPTION,
   DAILY_METHOD_STOP_TRANSCRIPTION,
   DAILY_CUSTOM_TRACK,
   DAILY_METHOD_GET_CAMERA_FACING_MODE,
@@ -3212,14 +3213,49 @@ export default class DailyIframe extends EventEmitter {
   }
 
   startTranscription(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'startTranscription()');
+
     this.sendMessageToCallMachine({
       action: DAILY_METHOD_START_TRANSCRIPTION,
       ...args,
     });
   }
 
-  stopTranscription() {
-    this.sendMessageToCallMachine({ action: DAILY_METHOD_STOP_TRANSCRIPTION });
+  updateTranscription(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'updateTranscription()');
+    if (!args) {
+      throw new Error(`updateTranscription Error: options is mandatory`);
+    }
+    // validate the args
+    if (typeof args !== 'object') {
+      throw new Error(`updateTranscription Error: options must be object type`);
+    }
+    // participants is either null or an array
+    if (args.participants && !Array.isArray(args.participants)) {
+      throw new Error(
+        `updateTranscription Error: participants must be an array`
+      );
+    }
+
+    this.sendMessageToCallMachine({
+      action: DAILY_METHOD_UPDATE_TRANSCRIPTION,
+      ...args,
+    });
+  }
+
+  stopTranscription(args) {
+    methodOnlySupportedAfterJoin(this._callState, 'stopTranscription()');
+    if (args && typeof args !== 'object') {
+      throw new Error(`stopTranscription Error: options must be object type`);
+    }
+    if (args && !args.instanceId) {
+      throw new Error(`"instanceId" not provided`);
+    }
+
+    this.sendMessageToCallMachine({
+      action: DAILY_METHOD_STOP_TRANSCRIPTION,
+      ...args,
+    });
   }
 
   async startDialOut(args) {
