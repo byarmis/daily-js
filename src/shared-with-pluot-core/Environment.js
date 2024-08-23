@@ -198,8 +198,6 @@ function isVideoProcessingSupportedInBrowser_Banuba() {
   return ['Chrome', 'Firefox', 'Safari'].includes(browserName);
 }
 
-const supportedBrowsersForAudioProcessors = ['Chrome', 'Firefox', 'Safari'];
-
 export function isAudioProcessingSupported() {
   // Using Krisp's compatibility, since they're currently our only audio processor
   if (isReactNative()) return false;
@@ -207,7 +205,15 @@ export function isAudioProcessingSupported() {
   if (isAndroidWeb()) return false;
   // But Krisp uses an AudioWorkletNode, which isn't available in older Safari
   if (typeof AudioWorkletNode === 'undefined') return false;
-  return supportedBrowsersForAudioProcessors.includes(getBrowserName());
+
+  switch (getBrowserName()) {
+    case 'Chrome':
+    case 'Firefox':
+      return true;
+    case 'Safari':
+      return getBrowserVersion().major >= 17;
+  }
+  return false;
 }
 
 export function browserSupportsLocalAudioLevelObservers() {
