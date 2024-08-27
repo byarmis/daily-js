@@ -3407,6 +3407,17 @@ export default class DailyIframe extends EventEmitter {
       }
     }
 
+    if (args.userId) {
+      if (typeof args.userId !== 'string') {
+        throw new Error(`Error starting dial out: userId must be a string`);
+      }
+      if (args.userId.length > 36) {
+        throw new Error(
+          `Error starting dial out: userId length must be less than 36`
+        );
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const k = (msg) => {
         if (msg.error) {

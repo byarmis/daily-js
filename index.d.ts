@@ -1995,6 +1995,7 @@ export interface DailyDialOutSession {
 export interface DailyStartDialoutSipOptions {
   sipUri?: string;
   displayName?: string;
+  userId?: string;
   video?: boolean;
   codecs?: DailyDialOutCodecs;
 }
@@ -2002,6 +2003,7 @@ export interface DailyStartDialoutSipOptions {
 export interface DailyStartDialoutPhoneOptions {
   phoneNumber?: string;
   displayName?: string;
+  userId?: string;
   codecs?: DailyDialOutCodecs;
   callerId?: string;
 }
