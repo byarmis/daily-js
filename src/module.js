@@ -3413,7 +3413,7 @@ export default class DailyIframe extends EventEmitter {
       }
       if (args.userId.length > 36) {
         throw new Error(
-          `Error starting dial out: userId length must be less than 36`
+          `Error starting dial out: userId length must be less than or equal to 36`
         );
       }
     }
