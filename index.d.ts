@@ -1622,6 +1622,7 @@ export interface DailyEventObjectDialinWarning extends DailyEventObjectBase {
 export interface DailyEventObjectDialOutConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-connected'>;
   sessionId?: string;
+  userId?: string;
   actionTraceId?: string;
 }
 
@@ -1629,12 +1630,14 @@ export interface DailyEventObjectDialOutError extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-error'>;
   errorMsg: string;
   sessionId?: string;
+  userId?: string;
   actionTraceId?: string;
 }
 
 export interface DailyEventObjectDialOutStopped extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-stopped'>;
   sessionId?: string;
+  userId?: string;
   actionTraceId?: string;
 }
 
@@ -1995,6 +1998,7 @@ export interface DailyDialOutSession {
 export interface DailyStartDialoutSipOptions {
   sipUri?: string;
   displayName?: string;
+  userId?: string;
   video?: boolean;
   codecs?: DailyDialOutCodecs;
 }
@@ -2002,6 +2006,7 @@ export interface DailyStartDialoutSipOptions {
 export interface DailyStartDialoutPhoneOptions {
   phoneNumber?: string;
   displayName?: string;
+  userId?: string;
   codecs?: DailyDialOutCodecs;
   callerId?: string;
 }
