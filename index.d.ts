@@ -67,6 +67,7 @@ export type DailyEvent =
   | 'active-speaker-mode-change'
   | 'network-quality-change'
   | 'network-connection'
+  | 'test-completed'
   | 'cpu-load-change'
   | 'face-counts-updated'
   | 'fullscreen'
@@ -713,6 +714,86 @@ export type DailyStartScreenShareOptions =
   | DailyStartScreenShare
   | DailyStartScreenShareFromStream;
 
+export type DailyQualityTestResult =
+  | 'good'
+  | 'bad'
+  | 'warning'
+  | 'aborted'
+  | 'failed';
+
+export type DailyCallQualityTestResults =
+  | DailyCallQualityTestStats
+  | DailyCallQualityTestAborted
+  | DailyCallQualityTestFailure;
+
+export type DailyP2PCallQualityTestResults =
+  | DailyP2PCallQualityTestStats
+  | DailyCallQualityTestAborted
+  | DailyCallQualityTestFailure;
+
+export interface DailyCallQualityTestStats {
+  result: Extract<DailyQualityTestResult, 'good' | 'warning' | 'bad'>;
+  data: DailyCallQualityTestData;
+  secondsElapsed: number;
+}
+export interface DailyP2PCallQualityTestStats {
+  result: Extract<DailyQualityTestResult, 'good' | 'warning' | 'bad'>;
+  data: DailyP2PCallQualityTestData;
+  secondsElapsed: number;
+}
+
+export interface DailyCallQualityTestData {
+  maxRoundTripTime: number | null;
+  avgRoundTripTime: number | null;
+  avgSendPacketLoss: number | null;
+  avgAvailableOutgoingBitrate: number | null;
+  avgSendBitsPerSecond: number | null;
+}
+
+export interface DailyP2PCallQualityTestData {
+  maxRoundTripTime: number | null;
+  avgRoundTripTime: number | null;
+  avgRecvPacketLoss: number | null;
+  avgAvailableOutgoingBitrate: number | null;
+  avgSendBitsPerSecond: number | null;
+  avgRecvBitsPerSecond: number | null;
+}
+
+export interface DailyCallQualityTestAborted {
+  result: Extract<DailyQualityTestResult, 'aborted'>;
+  secondsElapsed: number;
+}
+
+export interface DailyCallQualityTestFailure {
+  result: Extract<DailyQualityTestResult, 'failed'>;
+  errorMsg: string;
+  error?: DailyFatalErrorObject<DailyFatalErrorType>;
+  secondsElapsed: number;
+}
+
+export interface DailyConnectionQualityTestData {
+  // TODO: New TestPeerToPeerCallQuality() should return DailyCallQualityTestData
+  maxRTT: number | null;
+  packetLoss: number | null;
+}
+
+export interface DailyConnectionQualityTestStats {
+  result: DailyQualityTestResult;
+  data: DailyConnectionQualityTestData;
+  secondsElapsed: number;
+}
+
+export interface DailyWebsocketConnectivityTestResults {
+  result: 'passed' | 'failed' | 'warning' | 'aborted';
+  abortedRegions: string[];
+  failedRegions: string[];
+  passedRegions: string[];
+}
+
+export interface DailyNetworkConnectivityTestStats {
+  result: 'passed' | 'failed' | 'aborted';
+}
+
 export interface DailyNetworkStats {
   quality: number;
   stats: {
@@ -1339,6 +1420,20 @@ export interface DailyEventObjectNetworkConnectionEvent
   sfu_id?: string;
 }
 
+export interface DailyEventObjectTestCompleted extends DailyEventObjectBase {
+  action: Extract<DailyEvent, 'test-completed'>;
+  test:
+    | 'call-quality'
+    | 'p2p-call-quality'
+    | 'network-connectivity'
+    | 'websocket-connectivity';
+  results:
+    | DailyCallQualityTestResults
+    | DailyP2PCallQualityTestResults
+    | DailyNetworkConnectivityTestStats
+    | DailyWebsocketConnectivityTestResults;
+}
+
 export interface DailyEventObjectActiveSpeakerChange
   extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'active-speaker-change'>;
@@ -1470,86 +1565,6 @@ export interface DailyEventObjectTranscriptionError
   action: Extract<DailyEvent, 'transcription-error'>;
   instanceId: string;
   errorMsg?: string;
-}
-
-export interface DailyWebsocketConnectivityTestResults {
-  result: 'passed' | 'failed' | 'warning' | 'aborted';
-  abortedRegions: string[];
-  failedRegions: string[];
-  passedRegions: string[];
-}
-
-export interface DailyNetworkConnectivityTestStats {
-  result: 'passed' | 'failed' | 'aborted';
-}
-
-export type DailyQualityTestResult =
-  | 'good'
-  | 'bad'
-  | 'warning'
-  | 'aborted'
-  | 'failed';
-
-export type DailyCallQualityTestResults =
-  | DailyCallQualityTestStats
-  | DailyCallQualityTestAborted
-  | DailyCallQualityTestFailure;
-
-export type DailyP2PCallQualityTestResults =
-  | DailyP2PCallQualityTestStats
-  | DailyCallQualityTestAborted
-  | DailyCallQualityTestFailure;
-
-export interface DailyCallQualityTestStats {
-  result: Extract<DailyQualityTestResult, 'good' | 'warning' | 'bad'>;
-  data: DailyCallQualityTestData;
-  secondsElapsed: number;
-}
-export interface DailyP2PCallQualityTestStats {
-  result: Extract<DailyQualityTestResult, 'good' | 'warning' | 'bad'>;
-  data: DailyP2PCallQualityTestData;
-  secondsElapsed: number;
-}
-
-export interface DailyCallQualityTestData {
-  maxRoundTripTime: number | null;
-  avgRoundTripTime: number | null;
-  avgSendPacketLoss: number | null;
-  avgAvailableOutgoingBitrate: number | null;
-  avgSendBitsPerSecond: number | null;
-}
-
-export interface DailyP2PCallQualityTestData {
-  maxRoundTripTime: number | null;
-  avgRoundTripTime: number | null;
-  avgRecvPacketLoss: number | null;
-  avgAvailableOutgoingBitrate: number | null;
-  avgSendBitsPerSecond: number | null;
-  avgRecvBitsPerSecond: number | null;
-}
-
-export interface DailyCallQualityTestAborted {
-  result: Extract<DailyQualityTestResult, 'aborted'>;
-  secondsElapsed: number;
-}
-
-export interface DailyCallQualityTestFailure {
-  result: Extract<DailyQualityTestResult, 'failed'>;
-  errorMsg: string;
-  error?: DailyFatalErrorObject<DailyFatalErrorType>;
-  secondsElapsed: number;
-}
-
-export interface DailyConnectionQualityTestData {
-  // TODO: New TestPeerToPeerCallQuality() should return DailyCallQualityTestData
-  maxRTT: number | null;
-  packetLoss: number | null;
-}
-
-export interface DailyConnectionQualityTestStats {
-  result: DailyQualityTestResult;
-  data: DailyConnectionQualityTestData;
-  secondsElapsed: number;
 }
 
 export type DailyRemoteMediaPlayerStopReason =
@@ -1719,6 +1734,8 @@ export type DailyEventObject<T extends DailyEvent = any> =
     ? DailyEventObjectFaceCounts
     : T extends DailyEventObjectNetworkConnectionEvent['action']
     ? DailyEventObjectNetworkConnectionEvent
+    : T extends DailyEventObjectTestCompleted['action']
+    ? DailyEventObjectTestCompleted
     : T extends DailyEventObjectActiveSpeakerChange['action']
     ? DailyEventObjectActiveSpeakerChange
     : T extends DailyEventObjectActiveSpeakerModeChange['action']
@@ -2189,14 +2206,6 @@ export interface DailyCall {
   startTranscription(options?: DailyTranscriptionDeepgramOptions): void;
   updateTranscription(options: DailyTranscriptionUpdateOptions): void;
   stopTranscription(options?: DailyTranscriptionStopOptions): void;
-  getNetworkStats(): Promise<DailyNetworkStats>;
-  getCpuLoadStats(): Promise<DailyCpuLoadStats>;
-  testWebsocketConnectivity(): Promise<DailyWebsocketConnectivityTestResults>;
-  abortTestWebsocketConnectivity(): void;
-  testNetworkConnectivity(
-    videoTrack: MediaStreamTrack
-  ): Promise<DailyNetworkConnectivityTestStats>;
-  abortTestNetworkConnectivity(): void;
   testCallQuality(): Promise<DailyCallQualityTestResults>;
   stopTestCallQuality(): void;
   testPeerToPeerCallQuality(options: {
@@ -2204,6 +2213,12 @@ export interface DailyCall {
     duration?: number;
   }): Promise<DailyP2PCallQualityTestResults>;
   stopTestPeerToPeerCallQuality(): void;
+  testWebsocketConnectivity(): Promise<DailyWebsocketConnectivityTestResults>;
+  abortTestWebsocketConnectivity(): void;
+  testNetworkConnectivity(
+    videoTrack: MediaStreamTrack
+  ): Promise<DailyNetworkConnectivityTestStats>;
+  abortTestNetworkConnectivity(): void;
   /**
    * @deprecated This function will be removed. Use the method
    *    testPeerToPeerCallQuality() instead.
@@ -2217,6 +2232,8 @@ export interface DailyCall {
    *    stopTestPeerToPeerCallQuality() instead.
    */
   stopTestConnectionQuality(): void;
+  getNetworkStats(): Promise<DailyNetworkStats>;
+  getCpuLoadStats(): Promise<DailyCpuLoadStats>;
   updateSendSettings(settings: DailySendSettings): Promise<DailySendSettings>;
   getSendSettings(): DailySendSettings | null;
   getActiveSpeaker(): { peerId?: string };
