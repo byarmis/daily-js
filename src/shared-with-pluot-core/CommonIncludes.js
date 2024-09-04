@@ -153,6 +153,7 @@ export const DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED =
 export const DAILY_EVENT_ACTIVE_SPEAKER_CHANGE = 'active-speaker-change';
 export const DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE =
   'active-speaker-mode-change';
+export const DAILY_EVENT_TEST_COMPLETED = 'test-completed';
 export const DAILY_EVENT_NETWORK_QUALITY_CHANGE = 'network-quality-change';
 export const DAILY_EVENT_NETWORK_CONNECTION = 'network-connection';
 
