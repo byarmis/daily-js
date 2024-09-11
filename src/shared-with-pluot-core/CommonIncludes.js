@@ -153,6 +153,7 @@ export const DAILY_EVENT_LOCAL_SCREEN_SHARE_CANCELED =
 export const DAILY_EVENT_ACTIVE_SPEAKER_CHANGE = 'active-speaker-change';
 export const DAILY_EVENT_ACTIVE_SPEAKER_MODE_CHANGE =
   'active-speaker-mode-change';
+export const DAILY_EVENT_TEST_COMPLETED = 'test-completed';
 export const DAILY_EVENT_NETWORK_QUALITY_CHANGE = 'network-quality-change';
 export const DAILY_EVENT_NETWORK_CONNECTION = 'network-connection';
 
@@ -283,6 +284,8 @@ export const DAILY_METHOD_UPDATE_REMOTE_MEDIA_PLAYER =
   'daily-method-update-remote-media-player';
 export const DAILY_METHOD_START_TRANSCRIPTION =
   'daily-method-start-transcription';
+export const DAILY_METHOD_UPDATE_TRANSCRIPTION =
+  'daily-method-update-transcription';
 export const DAILY_METHOD_STOP_TRANSCRIPTION =
   'daily-method-stop-transcription';
 export const DAILY_METHOD_PREAUTH = 'daily-method-preauth';
