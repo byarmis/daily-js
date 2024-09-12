@@ -325,7 +325,7 @@ export function getBrowserName() {
     } else if (userAgent.match(/Chrome\//)) {
       // Includes Chromium-based browsers
       return 'Chrome';
-    } else if (userAgent.indexOf('Safari') > -1) {
+    } else if (userAgent.indexOf('Safari') > -1 || isSupportedAppleEngine()) {
       return 'Safari';
     } else if (userAgent.indexOf('Firefox') > -1) {
       return 'Firefox';
@@ -382,6 +382,18 @@ export function isSupportedIOSEnvironment() {
   return isIOS() && isUserMediaAccessible();
 }
 
+export function isSupportedAppleEngine() {
+  let userAgent = getUserAgent();
+  // This identifies the browser's rendering engine, AppleWebKit, which is used by browsers
+  // like Safari and, on iOS, sometimes by Chrome. When using the Ionic framework or WKWebView,
+  // the user agent may not always explicitly indicate it's from a mobile device.
+  // However, since it uses Apple's WebKit engine, it can be treated as Safari for handling purposes.
+  // Example:
+  // Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)
+  // Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 iOS Mobile
+  return userAgent.indexOf('AppleWebKit/605.1.15') > -1;
+}
+
 function isDisplayMediaAccessible() {
   return !!(
     navigator &&
@@ -403,7 +415,7 @@ function getSafariVersion() {
         minor = parseInt(match[2]);
         point = parseInt(match[4]);
       } catch (e) {}
-    } else if (isSupportedIOSEnvironment()) {
+    } else if (isSupportedIOSEnvironment() || isSupportedAppleEngine()) {
       // Hack: treat supported WKWebView like Safari 14.0.3 (no need to be
       // precise; just needs to be new enough to appear supported, and this was
       // the Safari version around the time WKWebView WebRTC support was added)
