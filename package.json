@@ -55,13 +55,13 @@
     "dotenv": "^16.0.3",
     "jest": "^27.4.7",
     "prettier": "^2.5.1",
-    "rollup": "^3.20.2",
+    "rollup": "^3.29.5",
     "semantic-release": "^22.0.12",
     "ts-jest": "^27.1.2",
-    "webpack": "^5.77.0",
+    "webpack": "^5.94.0",
     "webpack-bundle-analyzer": "^4.10.1",
     "webpack-cli": "^5.0.1",
-    "webpack-dev-server": "^4.13.2"
+    "webpack-dev-server": "5.1"
   },
   "dependencies": {
     "@babel/runtime": "^7.12.5",
@@ -69,6 +69,12 @@
     "bowser": "^2.8.1",
     "dequal": "^2.0.3",
     "events": "^3.1.0"
+  },
+  "overrides": {
+    "body-parser": "1.20.3",
+    "cookie": "0.7.0",
+    "express": "4.21.0",
+    "micromatch": "4.0.8"
   },
   "jest": {
     "verbose": true,
