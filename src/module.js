@@ -5460,20 +5460,27 @@ testCallQuality() and stopTestCallQuality() instead`);
       env = 'staging';
     }
 
+    // filter integrations that use the global variable
+    const integrations = Sentry.getDefaultIntegrations({}).filter(
+      (defaultIntegration) => {
+        return !['BrowserApiErrors', 'Breadcrumbs', 'GlobalHandlers'].includes(
+          defaultIntegration.name
+        );
+      }
+    );
     const client = new Sentry.BrowserClient({
       dsn: __sentryDSN__,
       transport: Sentry.makeFetchTransport,
-      integrations: [
-        new Sentry.Integrations.GlobalHandlers({
-          onunhandledrejection: false,
-        }),
-        new Sentry.Integrations.HttpContext(),
-      ],
+      stackParser: Sentry.defaultStackParser,
+      integrations,
       environment: env,
     });
 
-    const hub = new Sentry.Hub(client, undefined, DailyIframe.version());
-    this.session_id && hub.setExtra('sessionId', this.session_id);
+    const scope = new Sentry.Scope();
+    scope.setClient(client);
+    client.init();
+
+    this.session_id && scope.setExtra('sessionId', this.session_id);
     if (this.properties) {
       let properties = { ...this.properties };
 
@@ -5481,7 +5488,7 @@ testCallQuality() and stopTestCallQuality() instead`);
       properties.userName = properties.userName ? '[Filtered]' : undefined;
       properties.userData = properties.userData ? '[Filtered]' : undefined;
       properties.token = properties.token ? '[Filtered]' : undefined;
-      hub.setExtra('properties', properties);
+      scope.setExtra('properties', properties);
     }
     if (url) {
       let domain = url.searchParams.get('domain');
@@ -5489,25 +5496,25 @@ testCallQuality() and stopTestCallQuality() instead`);
         let match = url.host.match(/(.*?)\./);
         domain = (match && match[1]) || '';
       }
-      domain && hub.setTag('domain', domain);
+      domain && scope.setTag('domain', domain);
     }
     if (error.error) {
-      hub.setTag('fatalErrorType', error.error.type);
-      hub.setExtra('errorDetails', error.error.details);
+      scope.setTag('fatalErrorType', error.error.type);
+      scope.setExtra('errorDetails', error.error.details);
       error.error.details?.uri &&
-        hub.setTag('serverAddress', error.error.details.uri);
+        scope.setTag('serverAddress', error.error.details.uri);
       error.error.details?.workerGroup &&
-        hub.setTag('workerGroup', error.error.details.workerGroup);
+        scope.setTag('workerGroup', error.error.details.workerGroup);
       error.error.details?.geoGroup &&
-        hub.setTag('geoGroup', error.error.details.geoGroup);
+        scope.setTag('geoGroup', error.error.details.geoGroup);
       error.error.details?.on &&
-        hub.setTag('connectionAttempt', error.error.details.on);
+        scope.setTag('connectionAttempt', error.error.details.on);
       if (error.error.details?.bundleUrl) {
-        hub.setTag('bundleUrl', error.error.details.bundleUrl);
-        hub.setTag('bundleError', error.error.details.sourceError.type);
+        scope.setTag('bundleUrl', error.error.details.bundleUrl);
+        scope.setTag('bundleError', error.error.details.sourceError.type);
       }
     }
-    hub.setTags({
+    scope.setTags({
       callMode: this._callObjectMode
         ? isReactNative()
           ? 'reactNative'
@@ -5519,9 +5526,7 @@ testCallQuality() and stopTestCallQuality() instead`);
     });
 
     const msg = error.error?.msg || error.errorMsg;
-    hub.run((currentHub) => {
-      currentHub.captureException(new Error(msg));
-    });
+    scope.captureException(new Error(msg));
   }
 
   _callMachine() {
