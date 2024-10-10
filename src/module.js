@@ -5447,8 +5447,21 @@ testCallQuality() and stopTestCallQuality() instead`);
 
   _maybeSendToSentry(error) {
     if (error.error?.type) {
-      const sentryErrors = ['connection-error', 'end-of-life', 'no-room'];
+      const sentryErrors = [
+        DAILY_FATAL_ERROR_CONNECTION,
+        DAILY_FATAL_ERROR_EOL,
+        DAILY_FATAL_ERROR_NO_ROOM,
+      ];
       if (!sentryErrors.includes(error.error.type)) {
+        return;
+      }
+      if (
+        error.error.type === DAILY_FATAL_ERROR_NO_ROOM &&
+        error.error.msg.includes('deleted')
+      ) {
+        // 'no-room' errors occur when you try to join a room that doesn't
+        // exit as well as when a room is deleted out from under you. There's
+        // no need to report the latter since those go to dashboard logs.
         return;
       }
     }
