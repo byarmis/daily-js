@@ -114,6 +114,7 @@ export type DailyEvent =
   | 'dialin-stopped'
   | 'dialin-warning'
   | 'dialout-connected'
+  | 'dialout-answered'
   | 'dialout-error'
   | 'dialout-stopped'
   | 'dialout-warning';
@@ -1636,6 +1637,13 @@ export interface DailyEventObjectDialinWarning extends DailyEventObjectBase {
 
 export interface DailyEventObjectDialOutConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-connected'>;
+  sessionId?: string;
+  userId?: string;
+  actionTraceId?: string;
+}
+
+export interface DailyEventObjectDialOutAnswered extends DailyEventObjectBase {
+  action: Extract<DailyEvent, 'dialout-answered'>;
   sessionId?: string;
   userId?: string;
   actionTraceId?: string;
