@@ -240,11 +240,14 @@ export interface DailyLayoutConfig {
   grid?: DailyGridLayoutConfig;
 }
 
+export type DailyCustomTrayButtonVisualState = 'default' | 'sidebar-open' | 'active';
+
 export interface DailyCustomTrayButton {
   iconPath: string;
   iconPathDarkMode?: string;
   label: string;
   tooltip: string;
+  visualState?: DailyCustomTrayButtonVisualState;
 }
 
 export interface DailyCustomTrayButtons {

@@ -454,6 +454,7 @@ const customTrayButtonsType = {
     iconPathDarkMode: 'string',
     label: 'string',
     tooltip: 'string',
+    visualState: "'default' | 'sidebar-open' | 'active'",
   },
 };
 
@@ -6041,24 +6042,34 @@ function validateCustomTrayButtons(btns) {
   if (btns) {
     for (const [btnsKey] of Object.entries(btns)) {
       for (const [btnKey, btnValue] of Object.entries(btns[btnsKey])) {
-        if (btnKey === 'iconPath' && !validateHttpUrl(btnValue)) {
-          console.error(`customTrayButton ${btnKey} should be a url.`);
-          return false;
-        }
-        if (btnKey === 'iconPathDarkMode' && !validateHttpUrl(btnValue)) {
-          console.error(`customTrayButton ${btnKey} should be a url.`);
-          return false;
-        }
         const expectedKey = customTrayButtonsType.id[btnKey];
         if (!expectedKey) {
           console.error(`customTrayButton does not support key ${btnKey}`);
           return false;
         }
-        if (typeof btnValue !== expectedKey) {
-          console.error(
-            `customTrayButton ${btnKey} should be a ${expectedKey}.`
-          );
-          return false;
+        switch (btnKey) {
+          case 'iconPath':
+          case 'iconPathDarkMode':
+            if (!validateHttpUrl(btnValue)) {
+              console.error(`customTrayButton ${btnKey} should be a url.`);
+              return false;
+            }
+            break;
+          case 'visualState':
+            if (!['default', 'sidebar-open', 'active'].includes(btnValue)) {
+              console.error(
+                `customTrayButton ${btnKey} should be ${expectedKey}. Got: ${btnValue}`
+              );
+              return false;
+            }
+            break;
+          default:
+            if (typeof btnValue !== expectedKey) {
+              console.error(
+                `customTrayButton ${btnKey} should be a ${expectedKey}.`
+              );
+              return false;
+            }
         }
       }
     }
