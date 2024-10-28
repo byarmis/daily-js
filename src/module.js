@@ -5154,6 +5154,10 @@ testCallQuality() and stopTestCallQuality() instead`);
     this._callState = callState;
     this._isPreparingToJoin = isPreparingToJoin;
 
+    // Only shows the notification in case we have already joined the call.
+    const showAndroidNotification = this._callState === DAILY_STATE_JOINED;
+    this.updateShowAndroidOngoingMeetingNotification(showAndroidNotification);
+
     // Update state side-effects (which, for now, all depend on whether
     // _isCallPendingOrOngoing)
     const oldIsMeetingPendingOrOngoing = _isCallPendingOrOngoing(
@@ -5169,7 +5173,7 @@ testCallQuality() and stopTestCallQuality() instead`);
     }
     this.updateKeepDeviceAwake(curCallPendingOrOngoing);
     this.updateDeviceAudioMode(curCallPendingOrOngoing);
-    this.updateShowAndroidOngoingMeetingNotification(curCallPendingOrOngoing);
+
     this.updateNoOpRecordingEnsuringBackgroundContinuity(
       curCallPendingOrOngoing
     );
