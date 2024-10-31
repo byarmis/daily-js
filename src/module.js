@@ -454,6 +454,7 @@ const customTrayButtonsType = {
     iconPathDarkMode: 'string',
     label: 'string',
     tooltip: 'string',
+    visualState: "'default' | 'sidebar-open' | 'active'",
   },
 };
 
@@ -5153,6 +5154,10 @@ testCallQuality() and stopTestCallQuality() instead`);
     this._callState = callState;
     this._isPreparingToJoin = isPreparingToJoin;
 
+    // Only shows the notification in case we have already joined the call.
+    const showAndroidNotification = this._callState === DAILY_STATE_JOINED;
+    this.updateShowAndroidOngoingMeetingNotification(showAndroidNotification);
+
     // Update state side-effects (which, for now, all depend on whether
     // _isCallPendingOrOngoing)
     const oldIsMeetingPendingOrOngoing = _isCallPendingOrOngoing(
@@ -5168,7 +5173,7 @@ testCallQuality() and stopTestCallQuality() instead`);
     }
     this.updateKeepDeviceAwake(curCallPendingOrOngoing);
     this.updateDeviceAudioMode(curCallPendingOrOngoing);
-    this.updateShowAndroidOngoingMeetingNotification(curCallPendingOrOngoing);
+
     this.updateNoOpRecordingEnsuringBackgroundContinuity(
       curCallPendingOrOngoing
     );
@@ -5447,8 +5452,21 @@ testCallQuality() and stopTestCallQuality() instead`);
 
   _maybeSendToSentry(error) {
     if (error.error?.type) {
-      const sentryErrors = ['connection-error', 'end-of-life', 'no-room'];
+      const sentryErrors = [
+        DAILY_FATAL_ERROR_CONNECTION,
+        DAILY_FATAL_ERROR_EOL,
+        DAILY_FATAL_ERROR_NO_ROOM,
+      ];
       if (!sentryErrors.includes(error.error.type)) {
+        return;
+      }
+      if (
+        error.error.type === DAILY_FATAL_ERROR_NO_ROOM &&
+        error.error.msg.includes('deleted')
+      ) {
+        // 'no-room' errors occur when you try to join a room that doesn't
+        // exit as well as when a room is deleted out from under you. There's
+        // no need to report the latter since those go to dashboard logs.
         return;
       }
     }
@@ -5460,20 +5478,27 @@ testCallQuality() and stopTestCallQuality() instead`);
       env = 'staging';
     }
 
+    // filter integrations that use the global variable
+    const integrations = Sentry.getDefaultIntegrations({}).filter(
+      (defaultIntegration) => {
+        return !['BrowserApiErrors', 'Breadcrumbs', 'GlobalHandlers'].includes(
+          defaultIntegration.name
+        );
+      }
+    );
     const client = new Sentry.BrowserClient({
       dsn: __sentryDSN__,
       transport: Sentry.makeFetchTransport,
-      integrations: [
-        new Sentry.Integrations.GlobalHandlers({
-          onunhandledrejection: false,
-        }),
-        new Sentry.Integrations.HttpContext(),
-      ],
+      stackParser: Sentry.defaultStackParser,
+      integrations,
       environment: env,
     });
 
-    const hub = new Sentry.Hub(client, undefined, DailyIframe.version());
-    this.session_id && hub.setExtra('sessionId', this.session_id);
+    const scope = new Sentry.Scope();
+    scope.setClient(client);
+    client.init();
+
+    this.session_id && scope.setExtra('sessionId', this.session_id);
     if (this.properties) {
       let properties = { ...this.properties };
 
@@ -5481,7 +5506,7 @@ testCallQuality() and stopTestCallQuality() instead`);
       properties.userName = properties.userName ? '[Filtered]' : undefined;
       properties.userData = properties.userData ? '[Filtered]' : undefined;
       properties.token = properties.token ? '[Filtered]' : undefined;
-      hub.setExtra('properties', properties);
+      scope.setExtra('properties', properties);
     }
     if (url) {
       let domain = url.searchParams.get('domain');
@@ -5489,25 +5514,25 @@ testCallQuality() and stopTestCallQuality() instead`);
         let match = url.host.match(/(.*?)\./);
         domain = (match && match[1]) || '';
       }
-      domain && hub.setTag('domain', domain);
+      domain && scope.setTag('domain', domain);
     }
     if (error.error) {
-      hub.setTag('fatalErrorType', error.error.type);
-      hub.setExtra('errorDetails', error.error.details);
+      scope.setTag('fatalErrorType', error.error.type);
+      scope.setExtra('errorDetails', error.error.details);
       error.error.details?.uri &&
-        hub.setTag('serverAddress', error.error.details.uri);
+        scope.setTag('serverAddress', error.error.details.uri);
       error.error.details?.workerGroup &&
-        hub.setTag('workerGroup', error.error.details.workerGroup);
+        scope.setTag('workerGroup', error.error.details.workerGroup);
       error.error.details?.geoGroup &&
-        hub.setTag('geoGroup', error.error.details.geoGroup);
+        scope.setTag('geoGroup', error.error.details.geoGroup);
       error.error.details?.on &&
-        hub.setTag('connectionAttempt', error.error.details.on);
+        scope.setTag('connectionAttempt', error.error.details.on);
       if (error.error.details?.bundleUrl) {
-        hub.setTag('bundleUrl', error.error.details.bundleUrl);
-        hub.setTag('bundleError', error.error.details.sourceError.type);
+        scope.setTag('bundleUrl', error.error.details.bundleUrl);
+        scope.setTag('bundleError', error.error.details.sourceError.type);
       }
     }
-    hub.setTags({
+    scope.setTags({
       callMode: this._callObjectMode
         ? isReactNative()
           ? 'reactNative'
@@ -5519,9 +5544,7 @@ testCallQuality() and stopTestCallQuality() instead`);
     });
 
     const msg = error.error?.msg || error.errorMsg;
-    hub.run((currentHub) => {
-      currentHub.captureException(new Error(msg));
-    });
+    scope.captureException(new Error(msg));
   }
 
   _callMachine() {
@@ -6023,24 +6046,34 @@ function validateCustomTrayButtons(btns) {
   if (btns) {
     for (const [btnsKey] of Object.entries(btns)) {
       for (const [btnKey, btnValue] of Object.entries(btns[btnsKey])) {
-        if (btnKey === 'iconPath' && !validateHttpUrl(btnValue)) {
-          console.error(`customTrayButton ${btnKey} should be a url.`);
-          return false;
-        }
-        if (btnKey === 'iconPathDarkMode' && !validateHttpUrl(btnValue)) {
-          console.error(`customTrayButton ${btnKey} should be a url.`);
-          return false;
-        }
         const expectedKey = customTrayButtonsType.id[btnKey];
         if (!expectedKey) {
           console.error(`customTrayButton does not support key ${btnKey}`);
           return false;
         }
-        if (typeof btnValue !== expectedKey) {
-          console.error(
-            `customTrayButton ${btnKey} should be a ${expectedKey}.`
-          );
-          return false;
+        switch (btnKey) {
+          case 'iconPath':
+          case 'iconPathDarkMode':
+            if (!validateHttpUrl(btnValue)) {
+              console.error(`customTrayButton ${btnKey} should be a url.`);
+              return false;
+            }
+            break;
+          case 'visualState':
+            if (!['default', 'sidebar-open', 'active'].includes(btnValue)) {
+              console.error(
+                `customTrayButton ${btnKey} should be ${expectedKey}. Got: ${btnValue}`
+              );
+              return false;
+            }
+            break;
+          default:
+            if (typeof btnValue !== expectedKey) {
+              console.error(
+                `customTrayButton ${btnKey} should be a ${expectedKey}.`
+              );
+              return false;
+            }
         }
       }
     }

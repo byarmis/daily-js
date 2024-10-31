@@ -114,6 +114,7 @@ export type DailyEvent =
   | 'dialin-stopped'
   | 'dialin-warning'
   | 'dialout-connected'
+  | 'dialout-answered'
   | 'dialout-error'
   | 'dialout-stopped'
   | 'dialout-warning';
@@ -239,11 +240,17 @@ export interface DailyLayoutConfig {
   grid?: DailyGridLayoutConfig;
 }
 
+export type DailyCustomTrayButtonVisualState =
+  | 'default'
+  | 'sidebar-open'
+  | 'active';
+
 export interface DailyCustomTrayButton {
   iconPath: string;
   iconPathDarkMode?: string;
   label: string;
   tooltip: string;
+  visualState?: DailyCustomTrayButtonVisualState;
 }
 
 export interface DailyCustomTrayButtons {
@@ -399,6 +406,9 @@ export interface DailyAdvancedConfig {
    */
   disableSimulcast?: boolean;
   keepCamIndicatorLightOn?: boolean;
+  /**
+   * @deprecated This property will be removed. All calls use v2CamAndMic.
+   */
   v2CamAndMic?: boolean;
   /**
    * @deprecated This property will be removed. It has no affect.
@@ -1636,6 +1646,13 @@ export interface DailyEventObjectDialinWarning extends DailyEventObjectBase {
 
 export interface DailyEventObjectDialOutConnected extends DailyEventObjectBase {
   action: Extract<DailyEvent, 'dialout-connected'>;
+  sessionId?: string;
+  userId?: string;
+  actionTraceId?: string;
+}
+
+export interface DailyEventObjectDialOutAnswered extends DailyEventObjectBase {
+  action: Extract<DailyEvent, 'dialout-answered'>;
   sessionId?: string;
   userId?: string;
   actionTraceId?: string;
